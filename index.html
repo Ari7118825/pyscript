@@ -3,41 +3,232 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Cloud-less Python IDE</title>
+    <title>Python Browser IDE</title>
     
     <style id="pyscript-styles">
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; height: 100vh; margin: 0; background: #1e1e1e; color: white; overflow: hidden; }
-        
-        #sidebar { width: 260px; background: #252526; padding: 15px; border-right: 1px solid #333; display: flex; flex-direction: column; }
-        #file-list { flex-grow: 1; overflow-y: auto; margin-top: 10px; }
-        .file-item { cursor: pointer; padding: 8px 12px; margin: 2px 0; border-radius: 4px; font-size: 14px; transition: background 0.2s; display: flex; justify-content: space-between; align-items: center; }
-        .file-item:hover { background: #37373d; }
-        .file-item.active { background: #094771; color: white; }
-        .delete-btn { color: #ff5f56; font-weight: bold; padding: 0 5px; opacity: 0.5; }
-        .delete-btn:hover { opacity: 1; }
+        :root {
+            --bg-darker: #181818;
+            --bg-main: #1e1e1e;
+            --bg-sidebar: #252526;
+            --bg-activity: #333333;
+            --border-color: #3c3c3c;
+            --text-main: #cccccc;
+            --text-bright: #ffffff;
+            --accent: #007acc;
+            --accent-hover: #118ad4;
+            --error: #f48771;
+            --success: #75beff;
+        }
 
-        #editor-area { flex-grow: 1; display: flex; flex-direction: column; position: relative; }
-        #controls { padding: 10px 20px; background: #333; display: flex; align-items: center; gap: 15px; border-bottom: 1px solid #444; }
-        #current-file-label { font-weight: bold; color: #61dafb; min-width: 100px; }
-        
-        textarea { flex-grow: 1; background: #1e1e1e; color: #d4d4d4; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; padding: 20px; border: none; outline: none; font-size: 16px; resize: none; line-height: 1.5; }
-        
-        #output-container { height: 250px; display: flex; border-top: 2px solid #555; }
-        #output { flex: 1; background: #000; color: #00ff00; padding: 15px; overflow-y: auto; font-family: 'Consolas', monospace; font-size: 14px; white-space: pre-wrap; }
-        #debug-log { width: 300px; background: #111; color: #aaa; padding: 10px; font-size: 11px; font-family: monospace; overflow-y: auto; border-left: 1px solid #333; }
-        .log-entry { margin-bottom: 4px; border-bottom: 1px solid #222; padding-bottom: 2px; }
-        .log-error { color: #ff5f56; }
-        .log-success { color: #28a745; }
-        .log-warn { color: #ffcc00; }
+        body { 
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
+            display: flex; 
+            height: 100vh; 
+            margin: 0; 
+            background: var(--bg-main); 
+            color: var(--text-main); 
+            overflow: hidden; 
+        }
 
-        button { cursor: pointer; background: #007acc; color: white; border: none; padding: 6px 16px; border-radius: 4px; font-size: 14px; transition: background 0.2s; }
-        button:hover { background: #0062a3; }
-        button.run { background: #28a745; font-weight: bold; }
-        button.run:hover { background: #218838; }
-        button:disabled { background: #555; cursor: not-allowed; }
+        /* Activity Bar (Slim Left Strip) */
+        #activity-bar {
+            width: 48px;
+            background: var(--bg-activity);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 10px;
+            gap: 20px;
+            border-right: 1px solid var(--border-color);
+        }
+
+        .activity-icon {
+            color: #858585;
+            font-size: 24px;
+            cursor: pointer;
+        }
+        .activity-icon.active {
+            color: white;
+            border-left: 2px solid white;
+            padding-left: 2px;
+        }
+
+        /* Sidebar */
+        #sidebar { 
+            width: 240px; 
+            background: var(--bg-sidebar); 
+            display: flex; 
+            flex-direction: column;
+            border-right: 1px solid var(--border-color);
+        }
         
-        .new-file-input-group { display: flex; gap: 5px; margin-top: 10px; }
-        input[type="text"] { background: #3c3c3c; border: 1px solid #555; color: white; padding: 5px; border-radius: 3px; flex-grow: 1; outline: none; }
+        .sidebar-header {
+            padding: 10px 15px;
+            text-transform: uppercase;
+            font-size: 11px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            color: #bbbbbb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #file-list { flex-grow: 1; overflow-y: auto; }
+        .file-item { 
+            cursor: pointer; 
+            padding: 6px 20px; 
+            font-size: 13px; 
+            display: flex; 
+            align-items: center; 
+            gap: 8px;
+            transition: background 0.1s; 
+        }
+        .file-item:hover { background: #2a2d2e; }
+        .file-item.active { background: #37373d; color: white; }
+        .file-icon { color: #519aba; }
+
+        /* Editor Area */
+        #editor-container { 
+            flex-grow: 1; 
+            display: flex; 
+            flex-direction: column; 
+            min-width: 0;
+        }
+
+        #tabs-bar {
+            height: 35px;
+            background: var(--bg-darker);
+            display: flex;
+            overflow-x: auto;
+        }
+
+        .tab {
+            min-width: 120px;
+            padding: 0 10px;
+            background: #2d2d2d;
+            border-right: 1px solid var(--bg-darker);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 12px;
+            cursor: pointer;
+            color: #969696;
+        }
+
+        .tab.active {
+            background: var(--bg-main);
+            color: white;
+        }
+
+        #toolbar { 
+            padding: 8px 20px; 
+            background: var(--bg-main); 
+            display: flex; 
+            align-items: center; 
+            gap: 12px; 
+            border-bottom: 1px solid var(--border-color); 
+        }
+
+        textarea { 
+            flex-grow: 1; 
+            background: var(--bg-main); 
+            color: #d4d4d4; 
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace; 
+            padding: 15px; 
+            border: none; 
+            outline: none; 
+            font-size: 14px; 
+            resize: none; 
+            line-height: 1.6; 
+        }
+
+        /* Bottom Panels */
+        #bottom-panels { 
+            height: 280px; 
+            display: flex; 
+            border-top: 1px solid var(--border-color);
+            background: var(--bg-main);
+        }
+
+        .panel-header {
+            background: var(--bg-main);
+            padding: 5px 20px;
+            font-size: 11px;
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--border-color);
+            color: #aaaaaa;
+        }
+
+        #terminal-area {
+            flex: 2;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--border-color);
+        }
+
+        #output { 
+            flex: 1; 
+            background: var(--bg-darker); 
+            color: #cccccc; 
+            padding: 10px 15px; 
+            overflow-y: auto; 
+            font-family: 'Consolas', monospace; 
+            font-size: 13px; 
+            white-space: pre-wrap; 
+        }
+
+        #debug-log { 
+            flex: 1; 
+            background: var(--bg-main); 
+            color: #858585; 
+            padding: 10px; 
+            font-size: 11px; 
+            font-family: monospace; 
+            overflow-y: auto; 
+        }
+
+        .log-entry { margin-bottom: 3px; border-bottom: 1px solid #2a2a2a; padding-bottom: 2px; }
+        .log-error { color: var(--error); }
+        .log-success { color: var(--success); }
+
+        /* Buttons & Inputs */
+        button { 
+            cursor: pointer; 
+            background: var(--accent); 
+            color: white; 
+            border: none; 
+            padding: 4px 12px; 
+            border-radius: 2px; 
+            font-size: 12px; 
+        }
+        button:hover { background: var(--accent-hover); }
+        button.run { background: #2ea043; }
+        button.run:hover { background: #3fb950; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        .new-file-input-group { padding: 10px; display: flex; gap: 4px; }
+        input[type="text"] { 
+            background: #3c3c3c; 
+            border: 1px solid #555; 
+            color: white; 
+            padding: 4px 8px; 
+            font-size: 12px;
+            outline: none; 
+            flex-grow: 1;
+        }
+
+        /* Status Bar */
+        #status-bar {
+            height: 22px;
+            background: var(--accent);
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            font-size: 12px;
+            color: white;
+            justify-content: space-between;
+        }
     </style>
 
     <script>
@@ -49,38 +240,24 @@
             entry.innerText = `[${new Date().toLocaleTimeString()}] ${msg}`;
             log.appendChild(entry);
             log.scrollTop = log.scrollHeight;
-            console.log(`[DEBUG] ${msg}`);
         }
 
         const PYSCRIPT_VERSION = "2023.11.1";
         const cssUrl = `https://pyscript.net/releases/${PYSCRIPT_VERSION}/core.css`;
         const jsUrl = `https://pyscript.net/releases/${PYSCRIPT_VERSION}/core.js`;
-        const proxyPrefix = "https://api.codetabs.com/v1/proxy?quest=";
 
         function loadAssets() {
-            window.addEventListener('DOMContentLoaded', () => logDebug("DOM Loaded, starting asset load..."));
+            logDebug("Initializing core components...");
             
             const link = document.createElement('link');
             link.rel = 'stylesheet';
             link.href = cssUrl;
-            link.onload = () => logDebug("PyScript CSS loaded", "success");
-            link.onerror = () => {
-                logDebug("CSS failed, trying proxy...", "warn");
-                link.href = proxyPrefix + encodeURIComponent(cssUrl);
-            };
             document.head.appendChild(link);
 
             const script = document.createElement('script');
             script.type = 'module';
             script.src = jsUrl;
-            script.onload = () => logDebug("PyScript JS core loaded", "success");
-            script.onerror = () => {
-                logDebug("JS failed, trying proxy...", "warn");
-                const proxyScript = document.createElement('script');
-                proxyScript.type = 'module';
-                proxyScript.src = proxyPrefix + encodeURIComponent(jsUrl);
-                document.head.appendChild(proxyScript);
-            };
+            script.onload = () => logDebug("PyScript Runtime connected", "success");
             document.head.appendChild(script);
         }
         loadAssets();
@@ -88,29 +265,52 @@
 </head>
 <body>
 
+<div id="activity-bar">
+    <div class="activity-icon active">📄</div>
+    <div class="activity-icon">🔍</div>
+    <div class="activity-icon">⚙️</div>
+</div>
+
 <div id="sidebar">
-    <h3 style="margin-top:0">📁 Workspace</h3>
+    <div class="sidebar-header">
+        <span>Explorer</span>
+        <span style="cursor:pointer" title="New File">+</span>
+    </div>
     <div class="new-file-input-group">
-        <input type="text" id="new-filename" placeholder="name.py">
-        <button onclick="createNewFile()">+</button>
+        <input type="text" id="new-filename" placeholder="New file name...">
+        <button onclick="createNewFile()">Add</button>
     </div>
     <div id="file-list"></div>
 </div>
 
-<div id="editor-area">
-    <div id="controls">
-        <span id="current-file-label">main.py</span>
-        <button onclick="saveCurrentFile()">💾 Save</button>
-        <button class="run" id="run-btn" onclick="runPythonCode()">▶ Run Code</button>
-        <button onclick="clearOutput()" style="background: #444; margin-left: auto;">Clear</button>
+<div id="editor-container">
+    <div id="tabs-bar">
+        <div class="tab active" id="active-tab-label">main.py</div>
     </div>
-    <textarea id="code-input" spellcheck="false" placeholder="# Write your Python code here..."></textarea>
+    <div id="toolbar">
+        <button class="run" id="run-btn" onclick="runPythonCode()">▶ Run</button>
+        <button onclick="saveCurrentFile()">Save</button>
+        <button onclick="clearOutput()" style="background: transparent; border: 1px solid #555;">Clear Console</button>
+        <span id="status-text" style="margin-left: auto; font-size: 11px; color: #888;">Python 3.x Pyodide</span>
+    </div>
+    <textarea id="code-input" spellcheck="false"></textarea>
     
-    <div id="output-container">
-        <div id="output">System: Initializing PyScript (Main Thread)...</div>
-        <div id="debug-log">
-            <div class="log-entry">--- Debug Log Start ---</div>
+    <div id="bottom-panels">
+        <div id="terminal-area">
+            <div class="panel-header">Terminal</div>
+            <div id="output">System: Booting Python environment...</div>
         </div>
+        <div style="display: flex; flex-direction: column; flex: 1;">
+            <div class="panel-header">Debug Console</div>
+            <div id="debug-log">
+                <div class="log-entry">--- Session Started ---</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="status-bar">
+        <div>Ready</div>
+        <div>UTF-8</div>
     </div>
 </div>
 
@@ -122,9 +322,7 @@
     import js
     import sys
     import builtins
-    from pyodide.ffi import to_js
 
-    # Setup terminal output
     class WebOutput:
         def write(self, text):
             js.appendTerminal(text)
@@ -134,13 +332,11 @@
     sys.stdout = WebOutput()
     sys.stderr = WebOutput()
 
-    # Custom input() that works on main thread via JS prompt
     def custom_input(prompt_text=""):
         if prompt_text:
             print(prompt_text, end="")
         return js.window.prompt(prompt_text) or ""
 
-    # Replace the built-in input globally
     builtins.input = custom_input
 
     def run_user_code_internal(code, files_data):
@@ -153,8 +349,8 @@
             try:
                 with open(filename, "w") as f:
                     f.write(content)
-            except Exception as e:
-                js.console.warn(f"FS Sync error for {filename}: {str(e)}")
+            except:
+                pass
         
         try:
             exec(code, globals())
@@ -163,14 +359,14 @@
             traceback.print_exc()
 
     js.window.run_user_code_internal = run_user_code_internal
-    js.logDebug("Python Core: Loaded with Input support", "success")
+    js.logDebug("Environment initialized successfully", "success")
 </script>
 
 <script>
     let currentFile = "main.py";
 
     if (!localStorage.getItem("main.py")) {
-        localStorage.setItem("main.py", "import numpy as np\n\nprint('Hello from Python!')\n# This will trigger a browser prompt box:\nval = input('Enter a number: ')\n\ntry:\n    num = float(val)\n    print(f'Your number squared is: {num**2}')\nexcept:\n    print(f'You entered text: {val}')\n\na = np.array([1, 2, 3])\nprint(f'Numpy Array: {a}')");
+        localStorage.setItem("main.py", "import numpy as np\n\nprint('Hello from VS Code Clone!')\nname = input('What is your name? ')\nprint(f'Greetings, {name}!')\n\na = np.random.rand(3)\nprint(f'Random Numpy values: {a}')");
     }
 
     function updateFileList() {
@@ -181,10 +377,8 @@
             if (key && key.endsWith('.py')) {
                 const div = document.createElement('div');
                 div.className = `file-item ${key === currentFile ? 'active' : ''}`;
-                const nameSpan = document.createElement('span');
-                nameSpan.innerText = key;
-                nameSpan.onclick = () => switchFile(key);
-                div.appendChild(nameSpan);
+                div.innerHTML = `<span class="file-icon">🐍</span> ${key}`;
+                div.onclick = () => switchFile(key);
                 list.appendChild(div);
             }
         }
@@ -193,7 +387,7 @@
     function switchFile(filename) {
         saveCurrentFile(); 
         currentFile = filename;
-        document.getElementById('current-file-label').innerText = filename;
+        document.getElementById('active-tab-label').innerText = filename;
         document.getElementById('code-input').value = localStorage.getItem(filename) || "";
         updateFileList();
     }
@@ -209,7 +403,7 @@
         if (!name) return;
         if (!name.endsWith('.py')) name += '.py';
         if (!localStorage.getItem(name)) {
-            localStorage.setItem(name, `# File: ${name}\n`);
+            localStorage.setItem(name, `# ${name}\n`);
             input.value = '';
             updateFileList();
             switchFile(name);
@@ -230,10 +424,8 @@
 
     async function runPythonCode() {
         const runBtn = document.getElementById('run-btn');
-        
         if (typeof window.run_user_code_internal !== 'function') {
-            logDebug("Run Attempt: Python bridge not ready", "error");
-            appendTerminal("\nSystem Error: Python is still initializing...");
+            appendTerminal("\n[System] Waiting for Python engine...");
             return;
         }
 
@@ -247,13 +439,11 @@
             if(k && k.endsWith('.py')) allFiles[k] = localStorage.getItem(k);
         }
 
-        // Slight delay to allow UI to update (Run button text)
         setTimeout(() => {
             try {
                 window.run_user_code_internal(code, allFiles);
             } catch (err) {
-                logDebug("Execution Exception: " + err.message, "error");
-                appendTerminal("\nSystem Error: " + err.message);
+                appendTerminal("\n[Runtime Error] " + err.message);
             } finally {
                 runBtn.disabled = false;
             }
@@ -264,18 +454,9 @@
         document.getElementById('code-input').value = localStorage.getItem(currentFile) || "";
         updateFileList();
         
-        const startTime = Date.now();
         const checkReady = setInterval(() => {
-            const out = document.getElementById('output');
-            
             if (typeof window.run_user_code_internal === 'function') {
-                logDebug("Initialization: Successful", "success");
-                if(out.innerHTML.includes("Initializing")) {
-                    out.innerHTML = "--- Terminal Ready (Main Thread) ---\n";
-                }
-                clearInterval(checkReady);
-            } else if (Date.now() - startTime > 60000) {
-                logDebug("Initialization: Timeout at 60s", "error");
+                document.getElementById('output').innerHTML = "--- Python Engine Ready ---\n";
                 clearInterval(checkReady);
             }
         }, 1000);
