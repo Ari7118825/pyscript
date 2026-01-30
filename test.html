@@ -254,9 +254,9 @@
             min-height: 0;
         }
 
-        /* Fallback textarea (hidden when Monaco is used) */
-        textarea { 
-            display: none;
+        /* Fallback textarea (visible; hidden when Monaco is ready) */
+        #code-input { 
+            flex-grow: 1;
             background: var(--bg-main); 
             color: #d4d4d4; 
             font-family: 'Consolas', 'Monaco', 'Courier New', monospace; 
@@ -581,7 +581,7 @@
             log.scrollTop = log.scrollHeight;
         }
 
-        // Newer PyScript release (includes Pyodide under the hood)
+        // Newest PyScript (includes Pyodide; currently ships a recent Pyodide, ~0.26.x+)
         const PYSCRIPT_VERSION = "2026.1.1";
         const cssUrl = `https://pyscript.net/releases/${PYSCRIPT_VERSION}/core.css`;
         const jsUrl = `https://pyscript.net/releases/${PYSCRIPT_VERSION}/core.js`;
@@ -632,6 +632,12 @@
 
                 window.editor = editor;
                 editor.focus();
+
+                // Hide fallback textarea now that Monaco is ready
+                const textarea = document.getElementById('code-input');
+                if (textarea) {
+                    textarea.style.display = 'none';
+                }
 
                 // Basic Python snippet completions
                 monaco.languages.registerCompletionItemProvider('python', {
@@ -759,7 +765,7 @@
 
         <!-- Monaco editor host -->
         <div id="code-editor"></div>
-        <!-- Fallback textarea (hidden) -->
+        <!-- Fallback textarea -->
         <textarea id="code-input" spellcheck="false" placeholder="Select a file to start coding..."></textarea>
         
         <div id="toast-container"></div>
@@ -871,10 +877,77 @@
 
     builtins.input = custom_input
 
+    def _color_to_css(color):
+        try:
+            from collections.abc import Sequence
+            if isinstance(color, Sequence) and len(color) >= 3:
+                r, g, b = int(color[0]), int(color[1]), int(color[2])
+                return f"rgb({r}, {g}, {b})"
+        except Exception:
+            pass
+        return str(color)
+
+    def enable_pygame_vdg(window_title="Pygame Window"):
+        """
+        Minimal pygame integration: route pygame.display.set_mode to a VDG window.
+        Call this from your pygame code after importing pygame, or rely on the
+        automatic call in run_user_code_internal if pygame is already installed.
+        """
+        try:
+            import pygame
+        except Exception:
+            return  # pygame not available; do nothing
+
+        from js import window as _window
+
+        class VDGSurface:
+            def __init__(self, js_win, size):
+                self._js_win = js_win
+                self._size = size
+
+            def fill(self, color):
+                w, h = self._size
+                css = _color_to_css(color)
+                self._js_win.fill_rect(0, 0, w, h, css)
+
+        def _set_mode(size, *args, **kwargs):
+            w, h = size
+            js_win = _window.js_bridge.create_window(window_title, w, h)
+            surface = VDGSurface(js_win, (w, h))
+            pygame._vdg_window = js_win
+            pygame._vdg_surface = surface
+            return surface
+
+        def _flip():
+            # No buffering; drawing is immediate
+            return None
+
+        pygame.display.set_mode = _set_mode
+        pygame.display.flip = _flip
+
+        try:
+            import types
+            if not hasattr(pygame, "draw") or pygame.draw is None:
+                pygame.draw = types.SimpleNamespace()
+            def _draw_rect(surface, color, rect, width=0):
+                try:
+                    x, y, w, h = rect
+                except Exception:
+                    return
+                css = _color_to_css(color)
+                js_win = getattr(surface, "_js_win", None) or getattr(pygame, "_vdg_window", None)
+                if js_win is None:
+                    return
+                js_win.fill_rect(x, y, w, h, css)
+            pygame.draw.rect = _draw_rect
+        except Exception:
+            # If anything goes wrong, do not break user code
+            pass
+
     def run_user_code_internal(code, files_data):
         try:
             py_files = files_data.to_py()
-        except:
+        except Exception:
             py_files = dict(files_data)
 
         # Mirror localStorage filesystem to Pyodide virtual FS
@@ -891,6 +964,12 @@
             except Exception as e:
                 js.logDebug(f"Error syncing {filename}: {str(e)}", "error")
         
+        # Try to enable pygame->VDG integration if pygame is available up-front
+        try:
+            enable_pygame_vdg()
+        except Exception:
+            pass
+
         try:
             # Execute main code in global scope
             exec(code, globals())
@@ -1719,7 +1798,16 @@ main()`);
 
         const initialCode = currentFile ? (localStorage.getItem(currentFile) || "") : "";
         if (typeof initMonaco === 'function') {
-            initMonaco(initialCode);
+            // Try to use Monaco; if it fails for any reason, the textarea stays visible.
+            try {
+                initMonaco(initialCode);
+            } catch (e) {
+                console.error("Failed to init Monaco, falling back to textarea:", e);
+                const textarea = document.getElementById('code-input');
+                if (textarea && currentFile) {
+                    textarea.value = initialCode;
+                }
+            }
         } else {
             const textarea = document.getElementById('code-input');
             if (textarea && currentFile) {
