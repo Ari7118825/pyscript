@@ -36,6 +36,7 @@
         button:hover { background: #0062a3; }
         button.run { background: #28a745; font-weight: bold; }
         button.run:hover { background: #218838; }
+        button:disabled { background: #555; cursor: not-allowed; }
         
         .new-file-input-group { display: flex; gap: 5px; margin-top: 10px; }
         input[type="text"] { background: #3c3c3c; border: 1px solid #555; color: white; padding: 5px; border-radius: 3px; flex-grow: 1; outline: none; }
@@ -90,21 +91,21 @@
 
     def run_user_code(code, files_data):
         # 1. Update the virtual file system with current storage state
-        # This allows cross-file imports to work
         for filename, content in files_data.items():
             with open(filename, "w") as f:
                 f.write(content)
         
         # 2. Execute the code
         try:
-            # We execute in a shared global scope to allow persistence if desired
-            # or a clean dict {} if you want full isolation
             exec(code, globals())
         except Exception as e:
             print(f"\n❌ Error: {e}")
 
     # Export function to be called from Main Thread
     sync.run_user_code = run_user_code
+    
+    # Signal that we are ready
+    js.console.log("Worker initialized and sync exported.")
 </script>
 
 <script>
@@ -149,7 +150,7 @@
     }
 
     function switchFile(filename) {
-        saveCurrentFile(); // Auto-save before switching
+        saveCurrentFile(); 
         currentFile = filename;
         document.getElementById('current-file-label').innerText = filename;
         document.getElementById('code-input').value = localStorage.getItem(filename) || "";
@@ -159,7 +160,6 @@
     function saveCurrentFile() {
         const content = document.getElementById('code-input').value;
         localStorage.setItem(currentFile, content);
-        console.log(`Saved ${currentFile}`);
     }
 
     function createNewFile() {
@@ -182,7 +182,6 @@
         document.getElementById('output').innerHTML = "";
     }
 
-    // This function is called from the Python Worker via JS Proxy
     window.appendTerminal = function(text) {
         const output = document.getElementById('output');
         const span = document.createElement('span');
@@ -192,15 +191,29 @@
     };
 
     async function runPythonCode() {
+        const runBtn = document.getElementById('run-btn');
+        const workerElement = document.getElementById('main-worker');
+        
+        // Safety check: Is the worker loaded?
+        if (!workerElement || !workerElement.pyWorker) {
+            appendTerminal("\nSystem Error: PyScript worker is still loading. Please wait a few seconds...");
+            return;
+        }
+
+        const pyWorker = workerElement.pyWorker;
+        
+        // Safety check: Is the sync object available?
+        if (!pyWorker.sync || !pyWorker.sync.run_user_code) {
+            appendTerminal("\nSystem Error: Python environment is not fully ready. Please wait...");
+            return;
+        }
+
         saveCurrentFile();
         const code = document.getElementById('code-input').value;
-        const output = document.getElementById('output');
-        const runBtn = document.getElementById('run-btn');
         
         runBtn.disabled = true;
         runBtn.innerText = "⌛ Running...";
         
-        // Prepare all files in storage to be sent to worker VFS
         const allFiles = {};
         for(let i=0; i<localStorage.length; i++) {
             const k = localStorage.key(i);
@@ -208,27 +221,30 @@
         }
 
         try {
-            const worker = document.getElementById('main-worker').pyWorker;
-            // Call the sync function in the worker
-            await worker.sync.run_user_code(code, allFiles);
+            await pyWorker.sync.run_user_code(code, allFiles);
         } catch (err) {
-            appendTerminal("\nSystem Error: " + err);
+            appendTerminal("\nSystem Error: " + err.message);
         } finally {
             runBtn.disabled = false;
             runBtn.innerText = "▶ Run Code";
         }
     }
 
-    // Boot setup
     window.addEventListener('load', () => {
         document.getElementById('code-input').value = localStorage.getItem(currentFile) || "";
         updateFileList();
         
-        // Give worker a moment to initialize before cleaning system message
-        setTimeout(() => {
-            const out = document.getElementById('output');
-            if(out.innerHTML.includes("Initializing")) out.innerHTML = "--- Terminal Ready --- \n";
-        }, 3000);
+        // Periodic check for worker readiness to update terminal
+        const checkReady = setInterval(() => {
+            const workerElement = document.getElementById('main-worker');
+            if (workerElement && workerElement.pyWorker && workerElement.pyWorker.sync) {
+                const out = document.getElementById('output');
+                if(out.innerHTML.includes("Initializing")) {
+                    out.innerHTML = "--- Terminal Ready ---\n";
+                }
+                clearInterval(checkReady);
+            }
+        }, 500);
     });
 </script>
 
