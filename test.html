@@ -8,9 +8,6 @@
     <!-- JSZip for Zip handling -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
-    <!-- NEW: Codicons for VS Code-style icons -->
-    <link rel="stylesheet" href="https://unpkg.com/@vscode/codicons/dist/codicon.css">
-
     <style id="pyscript-styles">
         :root {
             --bg-darker: #181818;
@@ -37,7 +34,7 @@
             overflow: hidden; 
         }
 
-        /* MODIFIED: VS Code styling - Activity Bar enhancements */
+        /* Activity Bar */
         #activity-bar {
             width: 48px;
             background: var(--bg-activity);
@@ -52,7 +49,7 @@
 
         .activity-icon {
             color: #858585;
-            font-size: 24px; /* Adjusted for codicons */
+            font-size: 20px;
             cursor: pointer;
             padding: 12px 0;
             width: 100%;
@@ -177,10 +174,6 @@
             border-radius: 3px;
             cursor: pointer;
             border: 1px solid #444;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 4px; /* MODIFIED: For icon spacing */
         }
         .footer-btn:hover { background: #444; }
 
@@ -575,24 +568,38 @@
         .win-resize:hover {
             background: linear-gradient(135deg, transparent 50%, #888 50%);
         }
-
-        /* NEW: Styles for image thumbnails and previews */
-        .file-thumbnail {
-            width: 24px;
-            height: 24px;
-            object-fit: cover;
-        }
-
-        .desktop-thumbnail {
-            width: 48px;
-            height: 48px;
-            object-fit: cover;
-        }
-
-        .codicon {
-            color: inherit;
-        }
     </style>
+
+    <script>
+        function logDebug(msg, type = 'info') {
+            const log = document.getElementById('debug-log');
+            if (!log) return;
+            const entry = document.createElement('div');
+            entry.className = 'log-entry' + (type !== 'info' ? ' log-' + type : '');
+            entry.innerText = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        // Newest PyScript (includes Pyodide)
+        const PYSCRIPT_VERSION = "2026.1.1";
+        const cssUrl = `https://pyscript.net/releases/${PYSCRIPT_VERSION}/core.css`;
+        const jsUrl = `https://pyscript.net/releases/${PYSCRIPT_VERSION}/core.js`;
+
+        function loadAssets() {
+            logDebug("Initializing core components...");
+            const link = document.createElement('link');
+            link.rel = 'stylesheet'; 
+            link.href = cssUrl;
+            document.head.appendChild(link);
+
+            const script = document.createElement('script');
+            script.type = 'module'; 
+            script.src = jsUrl;
+            document.head.appendChild(script);
+        }
+        loadAssets();
+    </script>
 
     <!-- Monaco Editor loader -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
@@ -606,7 +613,7 @@
                     value: initialCode || '',
                     language: 'python',
                     theme: 'vs-dark',
-                    automaticLayout: true;
+                    automaticLayout: true,
                     minimap: { enabled: true },
                     fontSize: 14,
                     lineNumbers: 'on',
@@ -694,18 +701,16 @@
 <body>
 
 <div id="activity-bar">
-    <!-- MODIFIED: VS Code styling - Use codicons instead of emojis -->
-    <div class="activity-icon active" onclick="switchMode('editor', this)" title="File Explorer"><span class="codicon codicon-files"></span></div>
-    <div class="activity-icon" onclick="switchMode('vdg', this)" title="Virtual Desktop"><span class="codicon codicon-window"></span></div>
+    <div class="activity-icon active" onclick="switchMode('editor', this)" title="File Explorer">📄</div>
+    <div class="activity-icon" onclick="switchMode('vdg', this)" title="Virtual Desktop">🖥️</div>
 </div>
 
 <div id="sidebar">
     <div class="sidebar-header">
         <span id="sidebar-title">Explorer</span>
         <div class="sidebar-actions" id="explorer-actions">
-            <!-- MODIFIED: VS Code styling - Codicons for actions -->
-            <span onclick="showNewInput('file')" title="New File"><span class="codicon codicon-new-file"></span></span>
-            <span onclick="showNewInput('folder')" title="New Folder"><span class="codicon codicon-new-folder"></span></span>
+            <span onclick="showNewInput('file')" title="New File">📄+</span>
+            <span onclick="showNewInput('folder')" title="New Folder">📁+</span>
         </div>
     </div>
     <div id="new-item-input" class="new-input-group">
@@ -739,11 +744,10 @@
     </div>
     
     <div class="sidebar-footer">
-        <!-- MODIFIED: VS Code styling - Add codicons to buttons -->
-        <div class="footer-btn" onclick="triggerImport('file')"><span class="codicon codicon-download"></span> Import File</div>
-        <div class="footer-btn" onclick="triggerImport('folder')"><span class="codicon codicon-folder-opened"></span> Import Folder</div>
-        <div class="footer-btn" onclick="exportFilesystem()"><span class="codicon codicon-archive"></span> Export FS</div>
-        <div class="footer-btn" onclick="triggerImport('zip')"><span class="codicon codicon-file-zip"></span> Unzip File</div>
+        <div class="footer-btn" onclick="triggerImport('file')">📥 Import File</div>
+        <div class="footer-btn" onclick="triggerImport('folder')">📂 Import Folder</div>
+        <div class="footer-btn" onclick="exportFilesystem()">📤 Export FS</div>
+        <div class="footer-btn" onclick="triggerImport('zip')">📦 Unzip File</div>
     </div>
 </div>
 
@@ -763,11 +767,6 @@
         <div id="code-editor"></div>
         <!-- Fallback textarea -->
         <textarea id="code-input" spellcheck="false" placeholder="Select a file to start coding..."></textarea>
-
-        <!-- NEW: Image preview container -->
-        <div id="image-preview" style="display: none; flex: 1; align-items: center; justify-content: center; overflow: auto; background: var(--bg-main);">
-            <img id="preview-img" style="max-width: 90%; max-height: 90%; object-fit: contain;" alt="Image Preview" onerror="this.alt='Failed to load image'; this.src='';">
-        </div>
         
         <div id="toast-container"></div>
 
@@ -792,104 +791,538 @@
                 </div>
             </div>
         </div>
-    </div>
-</div>
 
-<!-- NEW: VDG container HTML (assumed from truncation) -->
-<div id="vdg-container">
-    <div id="vdg-desktop"></div>
-    <div id="vdg-taskbar">
-        <!-- Example taskbar button -->
-        <div class="taskbar-btn">Start</div>
-        <span id="vdg-clock" style="margin-left: auto;"></span>
+        <div id="status-bar">
+            <div id="status-left">Ready</div>
+            <div id="status-right">UTF-8</div>
+        </div>
     </div>
-</div>
 
-<!-- NEW: Import modal (assumed from truncation) -->
-<div id="import-modal">
-    <div class="modal-content">
-        <span class="modal-title">Import Options</span>
-        <label><input type="radio" name="import-mode" value="append" checked> Append to existing files</label><br>
-        <label><input type="radio" name="import-mode" value="overwrite"> Overwrite all files</label>
-        <div class="modal-btns">
-            <button onclick="startImportProcess()">Import</button>
-            <button onclick="closeImportModal()">Cancel</button>
+    <!-- VIRTUAL DESKTOP GUI LAYER -->
+    <div id="vdg-container">
+        <div id="vdg-desktop">
+            <!-- File icons and windows rendered here -->
+        </div>
+        <div id="vdg-taskbar">
+            <div class="taskbar-btn" style="background:#007acc; font-weight:bold;">Python OS</div>
+            <div id="taskbar-apps" style="display:flex; gap:5px;"></div>
+            <div style="margin-left:auto; font-size:12px; opacity:0.8;" id="vdg-clock">12:00 PM</div>
         </div>
     </div>
 </div>
 
-<!-- NEW: Hidden file inputs for imports -->
-<input type="file" id="file-import-input" style="display:none" onchange="handleFileImport(event)">
-<input type="file" id="folder-import-input" webkitdirectory style="display:none" onchange="handleFolderImport(event)">
-<input type="file" id="zip-import-input" accept=".zip" style="display:none" onchange="handleZipImport(event)">
+<!-- Import Settings Modal -->
+<div id="import-modal">
+    <div class="modal-content">
+        <span class="modal-title">Import Options</span>
+        <p style="font-size: 12px; color: #aaa;">How should we handle these files?</p>
+        <div style="display: flex; flex-direction: column; gap: 10px; margin: 15px 0;">
+            <label style="font-size: 12px; display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="radio" name="import-mode" value="merge" checked> Merge with existing
+            </label>
+            <label style="font-size: 12px; display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="radio" name="import-mode" value="overwrite"> Overwrite entire filesystem
+            </label>
+        </div>
+        <div class="modal-btns">
+            <button onclick="closeImportModal()" style="background: #555;">Cancel</button>
+            <button onclick="startImportProcess()">Import</button>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden Inputs -->
+<input type="file" id="file-import-input" style="display:none;" onchange="handleFileImport(event)">
+<input type="file" id="folder-import-input" style="display:none;" webkitdirectory directory onchange="handleFolderImport(event)">
+<input type="file" id="zip-import-input" style="display:none;" accept=".zip" onchange="handleZipImport(event)">
+
+<!-- New-style PyScript config JSON so JS can manage packages -->
+<py-config>
+{
+  "packages": ["numpy", "pandas"]
+}
+</py-config>
+
+<script type="py">
+    import js
+    import sys
+    import builtins
+    from pyodide.http import pyfetch
+    import asyncio
+    import types
+
+    class WebOutput:
+        def write(self, text):
+            js.appendTerminal(text)
+        def flush(self):
+            pass
+
+    sys.stdout = WebOutput()
+    sys.stderr = WebOutput()
+
+    def custom_input(prompt_text=""):
+        if prompt_text:
+            print(prompt_text, end="")
+        user_val = js.window.prompt(prompt_text) or ""
+        print(user_val) 
+        
+        # Allow "pip install <pkg>" from input, delegate to JS installPackage
+        if user_val.strip().lower().startswith("pip install "):
+            parts = user_val.strip().split()
+            if len(parts) >= 3:
+                pkg = parts[2]
+                js.installPackage(pkg)
+                return ""
+            
+        return user_val
+
+    builtins.input = custom_input
+
+    def _color_to_css(color):
+        try:
+            from collections.abc import Sequence
+            if isinstance(color, Sequence) and len(color) >= 3:
+                r, g, b = int(color[0]), int(color[1]), int(color[2])
+                return f"rgb({r}, {g}, {b})"
+        except Exception:
+            pass
+        return str(color)
+
+    def enable_pygame_vdg(window_title="Pygame Window"):
+        """
+        Provide a minimal pygame-like module that renders into the Virtual Desktop
+        via js_bridge. If real pygame somehow exists, we just patch its display
+        methods; otherwise we create a stub pygame module so that:
+        
+            import pygame
+            screen = pygame.display.set_mode((400, 300))
+        
+        works and opens a VDG window.
+        """
+        from js import window as _window
+
+        # Try real pygame first; otherwise create a stub module
+        try:
+            import pygame as _real_pygame  # type: ignore
+            pygame = _real_pygame
+        except Exception:
+            pygame = types.ModuleType("pygame")
+            sys.modules["pygame"] = pygame
+            pygame.display = types.SimpleNamespace()
+            pygame.draw = types.SimpleNamespace()
+            pygame.time = types.SimpleNamespace()
+
+            class Clock:
+                def tick(self, fps=0):
+                    import time as _time
+                    if fps and fps > 0:
+                        _time.sleep(1.0 / float(fps))
+            pygame.time.Clock = Clock
+
+        class VDGSurface:
+            def __init__(self, js_win, size):
+                self._js_win = js_win
+                self._size = size
+
+            def fill(self, color):
+                w, h = self._size
+                css = _color_to_css(color)
+                self._js_win.fill_rect(0, 0, w, h, css)
+
+        def _set_mode(size, *args, **kwargs):
+            try:
+                w, h = size
+            except Exception:
+                return None
+            js_win = _window.js_bridge.create_window(window_title, w, h)
+            surface = VDGSurface(js_win, (w, h))
+            pygame._vdg_window = js_win
+            pygame._vdg_surface = surface
+            return surface
+
+        def _flip():
+            # No buffering; drawing is immediate
+            return None
+
+        pygame.display.set_mode = _set_mode
+        pygame.display.flip = _flip
+
+        # Basic drawing support
+        def _draw_rect(surface, color, rect, width=0):
+            try:
+                x, y, w, h = rect
+            except Exception:
+                return
+            css = _color_to_css(color)
+            js_win = getattr(surface, "_js_win", None) or getattr(pygame, "_vdg_window", None)
+            if js_win is None:
+                return
+            js_win.fill_rect(x, y, w, h, css)
+
+        pygame.draw.rect = _draw_rect
+
+    def run_user_code_internal(code, files_data):
+        try:
+            py_files = files_data.to_py()
+        except Exception:
+            py_files = dict(files_data)
+
+        # Mirror localStorage filesystem to Pyodide virtual FS
+        for filename, content in py_files.items():
+            if filename.startswith('FOLDER_') or filename == 'loglevel:webpack-dev-server' or filename == 'pyscript-styles': 
+                continue
+            try:
+                # Ensure path exists for nested files
+                if "/" in filename:
+                    import os
+                    os.makedirs(os.path.dirname(filename), exist_ok=True)
+                with open(filename, "w") as f:
+                    f.write(content)
+            except Exception as e:
+                js.logDebug(f"Error syncing {filename}: {str(e)}", "error")
+        
+        # Always set up pygame stub/hook before user code runs
+        try:
+            enable_pygame_vdg()
+        except Exception:
+            pass
+
+        try:
+            # Execute main code in global scope
+            exec(code, globals())
+        except Exception:
+            import traceback
+            traceback.print_exc()
+
+    js.window.run_user_code_internal = run_user_code_internal
+</script>
 
 <script>
-    function logDebug(msg, type = 'info') {
-        const log = document.getElementById('debug-log');
-        if (!log) return;
-        const entry = document.createElement('div');
-        entry.className = 'log-entry' + (type !== 'info' ? ' log-' + type : '');
-        entry.innerText = `[${new Date().toLocaleTimeString()}] ${msg}`;
-        log.appendChild(entry);
-        log.scrollTop = log.scrollHeight;
-    }
-
-    // Newest PyScript (includes Pyodide)
-    const PYSCRIPT_VERSION = "2026.1.1";
-    const cssUrl = `https://pyscript.net/releases/${PYSCRIPT_VERSION}/core.css`;
-    const jsUrl = `https://pyscript.net/releases/${PYSCRIPT_VERSION}/core.js`;
-
-    function loadAssets() {
-        logDebug("Initializing core components...");
-        const link = document.createElement('link');
-        link.rel = 'stylesheet'; 
-        link.href = cssUrl;
-        document.head.appendChild(link);
-
-        const script = document.createElement('script');
-        script.type = 'module'; 
-        script.src = jsUrl;
-        document.head.appendChild(script);
-    }
-    loadAssets();
-
-    // NEW: Image import support - Extensions and helpers
-    const imageExtensions = new Set(['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp']);
-    function isImage(filename) {
-        const ext = filename.split('.').pop().toLowerCase();
-        return imageExtensions.has(ext);
-    }
-    function getMimeType(ext) {
-        if (ext === 'jpg') return 'jpeg';
-        if (ext === 'svg') return 'svg+xml';
-        return ext;
-    }
-
-    let openTabs = [];
-    let currentFile = "";
-    let activeMode = 'editor';
-    let currentImportType = '';
+    let currentFile = "main.py";
+    let openTabs = ["main.py"];
+    let newItemType = 'file';
     let pendingImportFiles = null;
-    let newItemType = '';
+    let currentImportType = null;
+    let activeMode = 'editor';
 
-    function showToast(message, action = "Saved") {
+    const PYODIDE_PACKAGES = [
+        "numpy","pandas","matplotlib","scipy","sympy","scikit-learn",
+        "requests","networkx","pillow","pyyaml","sqlalchemy","statsmodels",
+        "beautifulsoup4","lxml","pytest","bokeh","xarray","seaborn"
+    ];
+
+    /**
+     * WINDOW MANAGER - Virtual desktop windows for Python scripts
+     */
+    const WindowManager = {
+        windows: {},
+        nextId: 1,
+
+        create(title, width, height) {
+            const id = `win_${this.nextId++}`;
+            const vdgDesktop = document.getElementById('vdg-desktop');
+            
+            const win = document.createElement('div');
+            win.className = 'vd-window';
+            win.id = id;
+            win.style.width = width + 'px';
+            win.style.height = (height + 35) + 'px';
+            win.style.left = (50 + (this.nextId * 20)) + 'px';
+            win.style.top = (50 + (this.nextId * 20)) + 'px';
+            win.style.zIndex = 1000 + this.nextId;
+
+            win.innerHTML = `
+                <div class="win-header">
+                    <span class="win-title">${title}</span>
+                    <div class="win-controls">
+                        <div class="win-btn win-min"></div>
+                        <div class="win-btn win-max"></div>
+                        <div class="win-btn win-close" onclick="WindowManager.close('${id}')"></div>
+                    </div>
+                </div>
+                <div class="win-content">
+                    <canvas class="win-canvas" width="${width}" height="${height}"></canvas>
+                </div>
+                <div class="win-resize"></div>
+            `;
+
+            this.makeDraggable(win);
+            this.makeResizable(win, id);
+            vdgDesktop.appendChild(win);
+            
+            const canvas = win.querySelector('canvas');
+            const ctx = canvas.getContext('2d');
+
+            this.windows[id] = { el: win, ctx, canvas, title, originalWidth: width, originalHeight: height };
+            logDebug(`Window created: ${title} (${id})`, 'success');
+            
+            // Auto-switch to desktop view when a window is created
+            if (activeMode !== 'vdg') {
+                const vdgIcon = document.querySelector('.activity-icon[title="Virtual Desktop"]');
+                if (vdgIcon) {
+                    switchMode('vdg', vdgIcon);
+                    logDebug('Auto-switched to Desktop view', 'info');
+                }
+            }
+            
+            return id;
+        },
+
+        close(id) {
+            if (this.windows[id]) {
+                this.windows[id].el.remove();
+                delete this.windows[id];
+                logDebug(`Window closed: ${id}`, 'info');
+            }
+        },
+
+        drawRect(id, x, y, w, h, color) {
+            const win = this.windows[id];
+            if (!win) return;
+            win.ctx.fillStyle = color;
+            win.ctx.fillRect(x, y, w, h);
+        },
+
+        drawText(id, x, y, text, color, font) {
+            const win = this.windows[id];
+            if (!win) return;
+            win.ctx.fillStyle = color;
+            win.ctx.font = font || "14px sans-serif";
+            win.ctx.fillText(text, x, y);
+        },
+
+        clear(id) {
+            const win = this.windows[id];
+            if (!win) return;
+            win.ctx.clearRect(0, 0, win.canvas.width, win.canvas.height);
+        },
+
+        makeDraggable(win) {
+            let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+            const header = win.querySelector('.win-header');
+            
+            header.onmousedown = (e) => {
+                if (e.target.classList.contains('win-btn')) return;
+                e.preventDefault();
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                document.onmouseup = closeDragElement;
+                document.onmousemove = elementDrag;
+                // Bring to front
+                Object.values(this.windows).forEach(w => w.el.style.zIndex = 1000);
+                win.style.zIndex = 2000;
+            };
+
+            function elementDrag(e) {
+                e.preventDefault();
+                pos1 = pos3 - e.clientX;
+                pos2 = pos4 - e.clientY;
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                win.style.top = (win.offsetTop - pos2) + "px";
+                win.style.left = (win.offsetLeft - pos1) + "px";
+            }
+
+            function closeDragElement() {
+                document.onmouseup = null;
+                document.onmousemove = null;
+            }
+        },
+
+        makeResizable(win, id) {
+            const resizeHandle = win.querySelector('.win-resize');
+            let isResizing = false;
+            let startX, startY, startWidth, startHeight;
+
+            resizeHandle.onmousedown = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                isResizing = true;
+                startX = e.clientX;
+                startY = e.clientY;
+                startWidth = parseInt(win.style.width);
+                startHeight = parseInt(win.style.height);
+
+                document.onmousemove = resize;
+                document.onmouseup = stopResize;
+
+                // Bring to front
+                Object.values(this.windows).forEach(w => w.el.style.zIndex = 1000);
+                win.style.zIndex = 2000;
+            };
+
+            const resize = (e) => {
+                if (!isResizing) return;
+                const newWidth = Math.max(300, startWidth + (e.clientX - startX));
+                const newHeight = Math.max(200, startHeight + (e.clientY - startY));
+                
+                win.style.width = newWidth + 'px';
+                win.style.height = newHeight + 'px';
+
+                // Update canvas size
+                const canvas = win.querySelector('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Save current canvas content
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                
+                // Resize canvas
+                canvas.width = newWidth;
+                canvas.height = newHeight - 35; // Subtract header height
+                
+                // Restore content (scaled)
+                ctx.putImageData(imageData, 0, 0);
+                
+                // Update stored reference
+                if (this.windows[id]) {
+                    this.windows[id].canvas = canvas;
+                    this.windows[id].ctx = ctx;
+                }
+            };
+
+            const stopResize = () => {
+                isResizing = false;
+                document.onmousemove = null;
+                document.onmouseup = null;
+            };
+        }
+    };
+
+    // Expose WindowManager to Python via js_bridge
+    window.js_bridge = {
+        create_window: function(title, width, height) {
+            const winId = WindowManager.create(title, width, height);
+            // Return an object with methods that Python can call
+            return {
+                id: winId,
+                fill_rect: function(x, y, w, h, color) {
+                    WindowManager.drawRect(winId, x, y, w, h, color);
+                },
+                draw_text: function(x, y, txt, col, f) {
+                    WindowManager.drawText(winId, x, y, txt, col, f);
+                },
+                clear: function() {
+                    WindowManager.clear(winId);
+                },
+                close: function() {
+                    WindowManager.close(winId);
+                }
+            };
+        },
+        print_to_console: function(msg) {
+            appendTerminal(msg + "\n");
+        }
+    };
+
+    // Default File Setup with example
+    if (!localStorage.getItem("main.py")) {
+        localStorage.setItem("main.py", `# Multi-Window Python Graphics Demo
+import js
+import time
+
+def main():
+    # Get the js_bridge module
+    js_bridge = js.window.js_bridge
+    
+    # Create a new window
+    win = js_bridge.create_window("Graphics Demo", 400, 300)
+    
+    # Draw something
+    win.fill_rect(50, 50, 100, 100, "red")
+    win.draw_text(60, 80, "Hello from Python!", "white", "20px Arial")
+    
+    # Create another window
+    win2 = js_bridge.create_window("Animation", 300, 200)
+    win2.fill_rect(0, 0, 300, 200, "#222")
+    
+    # Simple animation
+    for i in range(10):
+        win2.clear()
+        win2.fill_rect(10 + (i * 20), 50, 40, 40, "cyan")
+        win2.draw_text(10, 20, f"Frame {i+1}", "white", "16px Arial")
+        time.sleep(0.3)
+    
+    print("Animation complete!")
+
+main()`);
+    }
+
+    function showToast(filename, action = "Saved") {
         const container = document.getElementById('toast-container');
         const toast = document.createElement('div');
         toast.className = 'toast';
-        toast.innerText = `${action} ${message}`;
+        const now = new Date().toLocaleTimeString();
+        toast.innerHTML = `
+            <div style="font-weight:bold; margin-bottom:4px;">File ${action}</div>
+            <div style="opacity:0.8; font-size:11px;">${filename}</div>
+            <div style="font-size:10px; margin-top:5px; opacity:0.6;">${now}</div>
+        `;
         container.appendChild(toast);
-        setTimeout(() => toast.remove(), 3000);
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
     }
 
+    /* FS OPERATIONS */
+
     function updateTabs() {
-        const tabsBar = document.getElementById('tabs-bar');
-        tabsBar.innerHTML = '';
-        openTabs.forEach(tab => {
-            const div = document.createElement('div');
-            div.className = `tab ${tab === currentFile ? 'active' : ''}`;
-            div.innerHTML = `<span onclick="switchFile('${tab}')">${tab}</span><span class="tab-close" onclick="closeTab('${tab}')">X</span>`;
-            tabsBar.appendChild(div);
+        const bar = document.getElementById('tabs-bar');
+        bar.innerHTML = '';
+        openTabs.forEach(filename => {
+            const tab = document.createElement('div');
+            tab.className = `tab ${filename === currentFile ? 'active' : ''}`;
+            tab.onclick = (e) => {
+                if(e.target.classList.contains('tab-close')) return;
+                switchFile(filename);
+            };
+            
+            const icon = filename.endsWith('.py') ? '🐍' : '📄';
+            tab.innerHTML = `
+                <span title="${filename}">${icon} ${filename}</span>
+                <span class="tab-close" onclick="closeTab('${filename}')">×</span>
+            `;
+            bar.appendChild(tab);
         });
+    }
+
+    function updateFileList() {
+        const list = document.getElementById('file-list');
+        list.innerHTML = '';
+        const keys = Object.keys(localStorage).sort();
+
+        // Folders
+        keys.filter(k => k.startsWith('FOLDER_')).forEach(key => {
+            const folderName = key.replace('FOLDER_', '');
+            const div = document.createElement('div');
+            div.className = 'folder-item';
+            div.innerHTML = `
+                <div class="item-label">📁 ${folderName}</div>
+                <div class="item-actions">
+                    <span class="action-icon" onclick="renameItem('${key}')">✏️</span>
+                    <span class="action-icon" onclick="deleteItem('${key}')">🗑️</span>
+                </div>
+            `;
+            list.appendChild(div);
+        });
+
+        // Files
+        keys.filter(k => !k.startsWith('FOLDER_') && k !== 'loglevel:webpack-dev-server' && k !== 'pyscript-styles').forEach(key => {
+            const div = document.createElement('div');
+            div.className = `file-item ${key === currentFile ? 'active' : ''}`;
+            const icon = key.endsWith('.py') ? '🐍' : '📄';
+            div.innerHTML = `
+                <div class="item-label" onclick="openFile('${key}')">${icon} ${key}</div>
+                <div class="item-actions">
+                    <span class="action-icon" onclick="renameItem('${key}')">✏️</span>
+                    <span class="action-icon" onclick="deleteItem('${key}')">🗑️</span>
+                </div>
+            `;
+            list.appendChild(div);
+        });
+
+        // Mirror to Desktop icons if VDG is active
+        updateDesktopIcons();
     }
 
     function openFile(filename) {
@@ -897,29 +1330,22 @@
             openTabs.push(filename);
         }
         switchFile(filename);
+        // If we were in VDG mode, go back to editor
+        if (activeMode === 'vdg') {
+            const editorIcon = document.querySelector('.activity-icon[title="File Explorer"]');
+            switchMode('editor', editorIcon);
+        }
     }
 
     function switchFile(filename) {
         saveCurrentFile(false); 
         currentFile = filename;
-        const isImg = isImage(filename);
-        document.getElementById('code-editor').style.display = isImg ? 'none' : '';
-        document.getElementById('code-input').style.display = isImg ? 'none' : '';
-        document.getElementById('image-preview').style.display = isImg ? 'flex' : 'none';
-        document.getElementById('toolbar').style.display = isImg ? 'none' : 'flex';
-        if (isImg) {
-            const content = localStorage.getItem(filename);
-            const ext = filename.split('.').pop().toLowerCase();
-            const mime = getMimeType(ext);
-            document.getElementById('preview-img').src = `data:image/${mime};base64,${content}`;
+        const content = localStorage.getItem(filename) || "";
+        if (window.editor) {
+            window.editor.setValue(content);
         } else {
-            const content = localStorage.getItem(filename) || "";
-            if (window.editor) {
-                window.editor.setValue(content);
-            } else {
-                const textarea = document.getElementById('code-input');
-                if (textarea) textarea.value = content;
-            }
+            const textarea = document.getElementById('code-input');
+            if (textarea) textarea.value = content;
         }
         updateFileList();
         updateTabs();
@@ -928,8 +1354,16 @@
     function closeTab(filename) {
         openTabs = openTabs.filter(t => t !== filename);
         if (currentFile === filename) {
-            currentFile = openTabs.length > 0 ? openTabs[0] : "";
-            switchFile(currentFile);
+            if (openTabs.length > 0) switchFile(openTabs[openTabs.length - 1]);
+            else {
+                currentFile = "";
+                if (window.editor) {
+                    window.editor.setValue("");
+                } else {
+                    const textarea = document.getElementById('code-input');
+                    if (textarea) textarea.value = "";
+                }
+            }
         }
         updateTabs();
         updateFileList();
@@ -984,21 +1418,11 @@
     async function processFileArray(files) {
         for (let file of files) {
             const path = file.webkitRelativePath || file.name;
-            let content;
-            if (isImage(path)) {
-                const buffer = await file.arrayBuffer();
-                const binaryString = Array.from(new Uint8Array(buffer), b => String.fromCharCode(b)).join('');
-                content = btoa(binaryString);
-                logDebug(`Imported image: ${path}`, 'success');
-            } else {
-                content = await file.text();
-            }
+            const content = await file.text();
             if (path.includes('/')) {
                 const parts = path.split('/');
-                let currentPath = '';
-                for (let i = 0; i < parts.length - 1; i++) {
-                    currentPath += (currentPath ? '/' : '') + parts[i];
-                    localStorage.setItem(`FOLDER_${currentPath}`, "dir");
+                for(let i=0; i < parts.length - 1; i++) {
+                    localStorage.setItem(`FOLDER_${parts[i]}`, "dir");
                 }
             }
             localStorage.setItem(path, content);
@@ -1012,14 +1436,7 @@
         for (let filename in zip.files) {
             const file = zip.files[filename];
             if (!file.dir) {
-                let content;
-                if (isImage(filename)) {
-                    const buffer = await file.async("arraybuffer");
-                    const binaryString = Array.from(new Uint8Array(buffer), b => String.fromCharCode(b)).join('');
-                    content = btoa(binaryString);
-                } else {
-                    content = await file.async("string");
-                }
+                const content = await file.async("string");
                 localStorage.setItem(filename, content);
                 if (!openTabs.includes(filename)) openTabs.push(filename);
                 currentFile = filename;
@@ -1036,18 +1453,7 @@
             if (k.startsWith('FOLDER_')) {
                 zip.folder(k.replace('FOLDER_', ''));
             } else if (k !== 'pyscript-styles' && !k.startsWith('loglevel:')) {
-                const content = localStorage.getItem(k);
-                if (isImage(k)) {
-                    const binaryString = atob(content);
-                    const len = binaryString.length;
-                    const bytes = new Uint8Array(len);
-                    for (let j = 0; j < len; j++) {
-                        bytes[j] = binaryString.charCodeAt(j);
-                    }
-                    zip.file(k, bytes);
-                } else {
-                    zip.file(k, content);
-                }
+                zip.file(k, localStorage.getItem(k));
             }
         });
         const blob = await zip.generateAsync({type:"blob"});
@@ -1211,19 +1617,7 @@
         const allFiles = {};
         for(let i=0; i<localStorage.length; i++) {
             const k = localStorage.key(i);
-            if(!k.startsWith('FOLDER_') && k !== 'pyscript-styles' && !k.startsWith('loglevel:')) {
-                const content = localStorage.getItem(k);
-                if (isImage(k)) {
-                    const binaryString = atob(content);
-                    const bytes = new Uint8Array(binaryString.length);
-                    for (let j = 0; j < binaryString.length; j++) {
-                        bytes[j] = binaryString.charCodeAt(j);
-                    }
-                    allFiles[k] = bytes;
-                } else {
-                    allFiles[k] = content;
-                }
-            }
+            allFiles[k] = localStorage.getItem(k);
         }
         setTimeout(() => {
             try {
@@ -1284,22 +1678,11 @@
             
             const isFolder = key.startsWith('FOLDER_');
             const displayName = isFolder ? key.replace('FOLDER_', '') : key;
-            let iconContent;
-            if (isFolder) {
-                iconContent = '<span class="codicon codicon-folder" style="font-size:32px;"></span>';
-            } else if (isImage(key)) {
-                const content = localStorage.getItem(key);
-                const ext = key.split('.').pop().toLowerCase();
-                const mime = getMimeType(ext);
-                iconContent = `<img src="data:image/${mime};base64,${content}" class="desktop-thumbnail" alt="${displayName}">`;
-            } else {
-                const iconClass = key.endsWith('.py') ? 'codicon-file-code' : 'codicon-file';
-                iconContent = `<span class="codicon ${iconClass}" style="font-size:32px;"></span>`;
-            }
+            const iconChar = isFolder ? '📁' : (key.endsWith('.py') ? '🐍' : '📄');
 
             const iconDiv = document.createElement('div');
             iconDiv.className = 'desktop-icon';
-            iconDiv.innerHTML = `${iconContent}<span>${displayName}</span>`;
+            iconDiv.innerHTML = `<span>${iconChar}</span><span>${displayName}</span>`;
             iconDiv.ondblclick = () => {
                 if (!isFolder) openFile(key);
             };
@@ -1422,55 +1805,6 @@
             dragging = false;
             document.body.style.userSelect = '';
         });
-    }
-
-    // MODIFIED: updateFileList - Use thumbnails for images and codicons for icons
-    function updateFileList() {
-        const list = document.getElementById('file-list');
-        list.innerHTML = '';
-        const keys = Object.keys(localStorage).sort();
-
-        // Folders
-        keys.filter(k => k.startsWith('FOLDER_')).forEach(key => {
-            const folderName = key.replace('FOLDER_', '');
-            const div = document.createElement('div');
-            div.className = 'folder-item';
-            div.innerHTML = `
-                <div class="item-label"><span class="codicon codicon-folder"></span> ${folderName}</div>
-                <div class="item-actions">
-                    <span class="action-icon" onclick="renameItem('${key}')"><span class="codicon codicon-edit"></span></span>
-                    <span class="action-icon" onclick="deleteItem('${key}')"><span class="codicon codicon-trash"></span></span>
-                </div>
-            `;
-            list.appendChild(div);
-        });
-
-        // Files
-        keys.filter(k => !k.startsWith('FOLDER_') && k !== 'loglevel:webpack-dev-server' && k !== 'pyscript-styles').forEach(key => {
-            const div = document.createElement('div');
-            div.className = `file-item ${key === currentFile ? 'active' : ''}`;
-            let iconHtml;
-            if (isImage(key)) {
-                const content = localStorage.getItem(key);
-                const ext = key.split('.').pop().toLowerCase();
-                const mime = getMimeType(ext);
-                iconHtml = `<img src="data:image/${mime};base64,${content}" class="file-thumbnail" alt="${key} thumbnail">`;
-            } else {
-                const iconClass = key.endsWith('.py') ? 'codicon-file-code' : 'codicon-file';
-                iconHtml = `<span class="codicon ${iconClass}"></span>`;
-            }
-            div.innerHTML = `
-                <div class="item-label" onclick="openFile('${key}')">${iconHtml} ${key}</div>
-                <div class="item-actions">
-                    <span class="action-icon" onclick="renameItem('${key}')"><span class="codicon codicon-edit"></span></span>
-                    <span class="action-icon" onclick="deleteItem('${key}')"><span class="codicon codicon-trash"></span></span>
-                </div>
-            `;
-            list.appendChild(div);
-        });
-
-        // Mirror to Desktop icons if VDG is active
-        updateDesktopIcons();
     }
 
     window.addEventListener('load', () => {
