@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Python Browser IDE - Multi-File & VDG</title>
+    <title>Python Browser IDE - Multi-File & Virtual Desktop</title>
     
     <!-- JSZip for Zip handling -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -21,7 +21,7 @@
             --accent-hover: #118ad4;
             --error: #f48771;
             --success: #75beff;
-            --vdg-bg: #2c3e50;
+            --vdg-bg: #1e1e2e;
         }
 
         body { 
@@ -371,7 +371,8 @@
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
             background: var(--vdg-bg);
-            background-image: linear-gradient(135deg, #2c3e50 25%, #34495e 100%);
+            background-image: radial-gradient(circle, #33334d 1px, transparent 1px);
+            background-size: 30px 30px;
             display: none;
             flex-direction: column;
             z-index: 500;
@@ -411,13 +412,14 @@
 
         #vdg-taskbar {
             height: 40px;
-            background: rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.85);
             backdrop-filter: blur(10px);
             display: flex;
             align-items: center;
             padding: 0 10px;
             gap: 10px;
             border-top: 1px solid rgba(255,255,255,0.1);
+            z-index: 9999;
         }
 
         .taskbar-btn {
@@ -429,45 +431,73 @@
             cursor: pointer;
         }
 
-        .vdg-window {
+        /* Virtual Desktop Windows - From test.html */
+        .vd-window {
             position: absolute;
             min-width: 300px;
             min-height: 200px;
-            background: #f0f0f0;
-            color: #333;
+            background: #1e1e1e;
+            color: #ccc;
             border-radius: 6px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            border: 1px solid #999;
+            border: 1px solid #444;
         }
 
         .win-header {
-            height: 30px;
-            background: #e0e0e0;
+            height: 35px;
+            background: #333333;
             display: flex;
             align-items: center;
-            padding: 0 10px;
+            padding: 0 12px;
             justify-content: space-between;
             cursor: move;
-            font-size: 12px;
+            font-size: 13px;
             font-weight: bold;
-            border-bottom: 1px solid #ccc;
+            border-bottom: 1px solid #444;
+            user-select: none;
         }
 
-        .win-controls { display: flex; gap: 5px; }
-        .win-btn { width: 12px; height: 12px; border-radius: 50%; cursor: pointer; }
+        .win-controls { display: flex; gap: 8px; }
+        .win-btn { 
+            width: 12px; 
+            height: 12px; 
+            border-radius: 50%; 
+            cursor: pointer; 
+        }
         .win-close { background: #ff5f56; }
+        .win-close:hover { background: #ff0000; }
         .win-min { background: #ffbd2e; }
         .win-max { background: #27c93f; }
 
         .win-content {
             flex-grow: 1;
-            padding: 10px;
-            background: white;
-            font-size: 13px;
-            overflow: auto;
+            position: relative;
+            background: #000;
+            overflow: hidden;
+        }
+
+        canvas.win-canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Resize handle for windows */
+        .win-resize {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 15px;
+            height: 15px;
+            cursor: nwse-resize;
+            background: linear-gradient(135deg, transparent 50%, #666 50%);
+        }
+
+        .win-resize:hover {
+            background: linear-gradient(135deg, transparent 50%, #888 50%);
         }
     </style>
 
@@ -524,9 +554,12 @@
 
     <!-- Desktop Menu (VDG View) - Hidden by default -->
     <div id="vdg-menu" style="display:none; flex-grow:1; padding:10px;">
-        <div style="font-size:12px; color:#888; margin-bottom:10px;">DESKTOP APPS</div>
-        <div class="footer-btn" style="margin-bottom:5px; text-align:left;" onclick="createWindow('About', 'Virtual Desktop v1.0<br>Running on Python Browser Engine.')">ℹ️ System Info</div>
-        <div class="footer-btn" style="margin-bottom:5px; text-align:left;" onclick="createWindow('Help', 'Double click files in the explorer to open in editor. Use Desktop for visual management.')">❓ Help</div>
+        <div style="font-size:12px; color:#888; margin-bottom:10px;">DESKTOP INFO</div>
+        <div style="font-size:11px; padding:10px; background:#2a2a2a; border-radius:4px; line-height:1.6;">
+            <strong>Virtual Desktop Engine</strong><br>
+            Python scripts can create windows using:<br>
+            <code style="background:#1a1a1a; padding:2px 5px; display:block; margin-top:5px;">import js<br>from js import document<br>js_bridge = js.window.js_bridge<br>js_bridge.create_window("Test", 400, 300)</code>
+        </div>
     </div>
     
     <div class="sidebar-footer">
@@ -575,10 +608,10 @@
     <!-- VIRTUAL DESKTOP GUI LAYER -->
     <div id="vdg-container">
         <div id="vdg-desktop">
-            <!-- Icons rendered dynamically -->
+            <!-- File icons and windows rendered here -->
         </div>
         <div id="vdg-taskbar">
-            <div class="taskbar-btn" style="background:#007acc; font-weight:bold;">Start</div>
+            <div class="taskbar-btn" style="background:#007acc; font-weight:bold;">Python OS</div>
             <div id="taskbar-apps" style="display:flex; gap:5px;"></div>
             <div style="margin-left:auto; font-size:12px; opacity:0.8;" id="vdg-clock">12:00 PM</div>
         </div>
@@ -683,9 +716,241 @@
     let currentImportType = null;
     let activeMode = 'editor';
 
-    // Default File Setup
+    /**
+     * WINDOW MANAGER - From test.html
+     * Manages virtual desktop windows that Python scripts can create
+     */
+    const WindowManager = {
+        windows: {},
+        nextId: 1,
+
+        create(title, width, height) {
+            const id = `win_${this.nextId++}`;
+            const vdgDesktop = document.getElementById('vdg-desktop');
+            
+            const win = document.createElement('div');
+            win.className = 'vd-window';
+            win.id = id;
+            win.style.width = width + 'px';
+            win.style.height = (height + 35) + 'px';
+            win.style.left = (50 + (this.nextId * 20)) + 'px';
+            win.style.top = (50 + (this.nextId * 20)) + 'px';
+            win.style.zIndex = 1000 + this.nextId;
+
+            win.innerHTML = `
+                <div class="win-header">
+                    <span class="win-title">${title}</span>
+                    <div class="win-controls">
+                        <div class="win-btn win-min"></div>
+                        <div class="win-btn win-max"></div>
+                        <div class="win-btn win-close" onclick="WindowManager.close('${id}')"></div>
+                    </div>
+                </div>
+                <div class="win-content">
+                    <canvas class="win-canvas" width="${width}" height="${height}"></canvas>
+                </div>
+                <div class="win-resize"></div>
+            `;
+
+            this.makeDraggable(win);
+            this.makeResizable(win, id);
+            vdgDesktop.appendChild(win);
+            
+            const canvas = win.querySelector('canvas');
+            const ctx = canvas.getContext('2d');
+
+            this.windows[id] = { el: win, ctx, canvas, title, originalWidth: width, originalHeight: height };
+            logDebug(`Window created: ${title} (${id})`, 'success');
+            
+            // Auto-switch to desktop view when a window is created
+            if (activeMode !== 'vdg') {
+                const vdgIcon = document.querySelector('.activity-icon[title="Virtual Desktop"]');
+                if (vdgIcon) {
+                    switchMode('vdg', vdgIcon);
+                    logDebug('Auto-switched to Desktop view', 'info');
+                }
+            }
+            
+            return id;
+        },
+
+        close(id) {
+            if (this.windows[id]) {
+                this.windows[id].el.remove();
+                delete this.windows[id];
+                logDebug(`Window closed: ${id}`, 'info');
+            }
+        },
+
+        drawRect(id, x, y, w, h, color) {
+            const win = this.windows[id];
+            if (!win) return;
+            win.ctx.fillStyle = color;
+            win.ctx.fillRect(x, y, w, h);
+        },
+
+        drawText(id, x, y, text, color, font) {
+            const win = this.windows[id];
+            if (!win) return;
+            win.ctx.fillStyle = color;
+            win.ctx.font = font || "14px sans-serif";
+            win.ctx.fillText(text, x, y);
+        },
+
+        clear(id) {
+            const win = this.windows[id];
+            if (!win) return;
+            win.ctx.clearRect(0, 0, win.canvas.width, win.canvas.height);
+        },
+
+        makeDraggable(win) {
+            let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+            const header = win.querySelector('.win-header');
+            
+            header.onmousedown = (e) => {
+                if (e.target.classList.contains('win-btn')) return;
+                e.preventDefault();
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                document.onmouseup = closeDragElement;
+                document.onmousemove = elementDrag;
+                // Bring to front
+                Object.values(this.windows).forEach(w => w.el.style.zIndex = 1000);
+                win.style.zIndex = 2000;
+            };
+
+            function elementDrag(e) {
+                e.preventDefault();
+                pos1 = pos3 - e.clientX;
+                pos2 = pos4 - e.clientY;
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                win.style.top = (win.offsetTop - pos2) + "px";
+                win.style.left = (win.offsetLeft - pos1) + "px";
+            }
+
+            function closeDragElement() {
+                document.onmouseup = null;
+                document.onmousemove = null;
+            }
+        },
+
+        makeResizable(win, id) {
+            const resizeHandle = win.querySelector('.win-resize');
+            let isResizing = false;
+            let startX, startY, startWidth, startHeight;
+
+            resizeHandle.onmousedown = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                isResizing = true;
+                startX = e.clientX;
+                startY = e.clientY;
+                startWidth = parseInt(win.style.width);
+                startHeight = parseInt(win.style.height);
+
+                document.onmousemove = resize;
+                document.onmouseup = stopResize;
+
+                // Bring to front
+                Object.values(this.windows).forEach(w => w.el.style.zIndex = 1000);
+                win.style.zIndex = 2000;
+            };
+
+            const resize = (e) => {
+                if (!isResizing) return;
+                const newWidth = Math.max(300, startWidth + (e.clientX - startX));
+                const newHeight = Math.max(200, startHeight + (e.clientY - startY));
+                
+                win.style.width = newWidth + 'px';
+                win.style.height = newHeight + 'px';
+
+                // Update canvas size
+                const canvas = win.querySelector('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Save current canvas content
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                
+                // Resize canvas
+                canvas.width = newWidth;
+                canvas.height = newHeight - 35; // Subtract header height
+                
+                // Restore content (scaled)
+                ctx.putImageData(imageData, 0, 0);
+                
+                // Update stored reference
+                if (this.windows[id]) {
+                    this.windows[id].canvas = canvas;
+                    this.windows[id].ctx = ctx;
+                }
+            };
+
+            const stopResize = () => {
+                isResizing = false;
+                document.onmousemove = null;
+                document.onmouseup = null;
+            };
+        }
+    };
+
+    // Expose WindowManager to Python via js_bridge
+    window.js_bridge = {
+        create_window: function(title, width, height) {
+            const winId = WindowManager.create(title, width, height);
+            // Return an object with methods that Python can call
+            return {
+                id: winId,
+                fill_rect: function(x, y, w, h, color) {
+                    WindowManager.drawRect(winId, x, y, w, h, color);
+                },
+                draw_text: function(x, y, txt, col, f) {
+                    WindowManager.drawText(winId, x, y, txt, col, f);
+                },
+                clear: function() {
+                    WindowManager.clear(winId);
+                },
+                close: function() {
+                    WindowManager.close(winId);
+                }
+            };
+        },
+        print_to_console: function(msg) {
+            appendTerminal(msg + "\n");
+        }
+    };
+
+    // Default File Setup with example
     if (!localStorage.getItem("main.py")) {
-        localStorage.setItem("main.py", "import numpy as np\nprint('Welcome to the multi-file IDE!')\nprint('Try creating a new .txt or .py file.')\nprint('You can even import your other local files!')");
+        localStorage.setItem("main.py", `# Multi-Window Python Graphics Demo
+import js
+import time
+
+def main():
+    # Get the js_bridge module
+    js_bridge = js.window.js_bridge
+    
+    # Create a new window
+    win = js_bridge.create_window("Graphics Demo", 400, 300)
+    
+    # Draw something
+    win.fill_rect(50, 50, 100, 100, "red")
+    win.draw_text(60, 80, "Hello from Python!", "white", "20px Arial")
+    
+    # Create another window
+    win2 = js_bridge.create_window("Animation", 300, 200)
+    win2.fill_rect(0, 0, 300, 200, "#222")
+    
+    # Simple animation
+    for i in range(10):
+        win2.clear()
+        win2.fill_rect(10 + (i * 20), 50, 40, 40, "cyan")
+        win2.draw_text(10, 20, f"Frame {i+1}", "white", "16px Arial")
+        time.sleep(0.3)
+    
+    print("Animation complete!")
+
+main()`);
     }
 
     function showToast(filename, action = "Saved") {
@@ -1042,7 +1307,10 @@
         const desktop = document.getElementById('vdg-desktop');
         if (activeMode !== 'vdg') return;
         
-        desktop.innerHTML = '';
+        // Clear only icons, not windows
+        const icons = desktop.querySelectorAll('.desktop-icon');
+        icons.forEach(icon => icon.remove());
+        
         const keys = Object.keys(localStorage).sort();
 
         keys.forEach(key => {
@@ -1060,47 +1328,6 @@
             };
             desktop.appendChild(iconDiv);
         });
-    }
-
-    function createWindow(title, content) {
-        const vdg = document.getElementById('vdg-desktop');
-        const win = document.createElement('div');
-        win.className = 'vdg-window';
-        win.style.left = '100px';
-        win.style.top = '100px';
-        
-        win.innerHTML = `
-            <div class="win-header">
-                <span>${title}</span>
-                <div class="win-controls">
-                    <div class="win-btn win-min"></div>
-                    <div class="win-btn win-max"></div>
-                    <div class="win-btn win-close" onclick="this.closest('.vdg-window').remove()"></div>
-                </div>
-            </div>
-            <div class="win-content">${content}</div>
-        `;
-
-        // Simple drag logic
-        let isDragging = false;
-        let offset = [0,0];
-        const header = win.querySelector('.win-header');
-        
-        header.onmousedown = (e) => {
-            isDragging = true;
-            offset = [win.offsetLeft - e.clientX, win.offsetTop - e.clientY];
-            win.style.zIndex = 1000;
-        };
-
-        document.onmousemove = (e) => {
-            if (!isDragging) return;
-            win.style.left = (e.clientX + offset[0]) + 'px';
-            win.style.top = (e.clientY + offset[1]) + 'px';
-        };
-
-        document.onmouseup = () => isDragging = false;
-
-        vdg.appendChild(win);
     }
 
     function updateClock() {
