@@ -298,6 +298,9 @@ For games and real-time apps, it’s better to use JavaScript’s timer:
 
 - Use `pyodide.ffi.create_proxy` to wrap a Python function.
 - Use `js.window.setInterval(proxy, interval_ms)` to call it repeatedly.
+- **Important:** keep the proxy object alive (e.g. store it on `js.window`) or
+  Pyodide will destroy it and you’ll see errors like
+  "This borrowed proxy was automatically destroyed" in the browser console.
 
 Example – bouncing ball:
 
@@ -344,8 +347,9 @@ Example – bouncing ball:
 
             draw()
 
-        # Wrap Python function so JS can call it
+        # Wrap Python function so JS can call it, and keep proxy alive
         step_proxy = create_proxy(step)
+        js.window._bouncing_ball_step_proxy = step_proxy
 
         # Call step() every 16 ms (~60 FPS)
         interval_id = js.window.setInterval(step_proxy, 16)
@@ -353,6 +357,10 @@ Example – bouncing ball:
         # Optional cleanup function for the future
         def cleanup():
             js.window.clearInterval(interval_id)
+            try:
+                del js.window._bouncing_ball_step_proxy
+            except Exception:
+                pass
 
         js.window._bouncing_ball_cleanup = cleanup
 
@@ -752,6 +760,9 @@ You can copy this into `snake.py`:
         interval_id = js.window.setInterval(step_proxy, TICK_MS)
         js.document.addEventListener("keydown", key_proxy)
 
+        # Keep proxies alive so Pyodide does not destroy them
+        js.window._snake_proxies = [step_proxy, key_proxy]
+
         def cleanup():
             try:
                 js.window.clearInterval(interval_id)
@@ -759,6 +770,10 @@ You can copy this into `snake.py`:
                 pass
             try:
                 js.document.removeEventListener("keydown", key_proxy)
+            except Exception:
+                pass
+            try:
+                del js.window._snake_proxies
             except Exception:
                 pass
 
@@ -783,6 +798,8 @@ With the pieces above you can build **any** 2D windowed app in this environment:
 - Use `create_proxy` and `addEventListener` for:
   - Keyboard controls
   - Mouse controls (clicks, dragging, hover effects)
+- Always keep proxies alive (e.g. store them on `js.window`) while the browser
+  might still call them, otherwise Pyodide will destroy them.
 - Use `setInterval` (or loops with `time.sleep`) for:
   - Game loops
   - Animations
@@ -794,6 +811,140 @@ With the pieces above you can build **any** 2D windowed app in this environment:
 - Use `js_bridge.print_to_console(msg)` if you want to print directly to the IDE console from a “library” function:
 
       js_bridge.print_to_console("Hello from inside my engine!")
+
+-------------------------------------------
+9.1 Example – screenshot window background (auto-resizing)
+-------------------------------------------
+
+This example loads `screenshot.png` from the virtual filesystem, opens a
+Virtual Desktop window, and draws the image scaled to the current window size.
+It automatically updates when the window is resized.
+
+    import base64
+    import js
+    from js import document
+    from pyodide.ffi import create_proxy
+
+    # Keep proxies alive so Pyodide does not destroy them
+    _draw_proxy = None
+    _onload_proxy = None
+
+    def main():
+        log_debug = js.window.logDebug
+
+        # 1) Load screenshot.png from the virtual filesystem
+        try:
+            with open("screenshot.png", "rb") as f:
+                data = f.read()
+            log_debug("Loaded screenshot.png from filesystem", "success")
+        except Exception as e:
+            log_debug(f"Failed to load screenshot.png: {e}", "error")
+            print("Failed to load screenshot.png:", e)
+            return
+
+        # 2) Convert to a data URL that the browser can display
+        try:
+            data_b64 = base64.b64encode(data).decode("ascii")
+            data_url = "data:image/png;base64," + data_b64
+            log_debug("Converted screenshot.png to data URL", "info")
+        except Exception as e:
+            log_debug(f"Failed to convert image to data URL: {e}", "error")
+            print("Failed to convert image to data URL:", e)
+            return
+
+        # 3) Create a JS Image and set its source
+        try:
+            Image = js.Image
+            img = Image.new()
+            img.src = data_url
+            log_debug("Created JS Image and set src", "info")
+        except Exception as e:
+            log_debug(f"Failed to create JS Image: {e}", "error")
+            print("Failed to create JS Image:", e)
+            return
+
+        # 4) Create a Virtual Desktop window to draw into
+        try:
+            js_bridge = js.window.js_bridge
+            win = js_bridge.create_window("Screenshot Background", 800, 600)
+            log_debug(f"Created VDG window with id={win.id}", "success")
+        except Exception as e:
+            log_debug(f"Failed to create VDG window: {e}", "error")
+            print("Failed to create VDG window:", e)
+            return
+
+        # 5) Access the underlying <canvas> and its 2D context
+        try:
+            win_el = document.getElementById(win.id)
+            if not win_el:
+                log_debug("VDG window element not found in DOM", "error")
+                print("VDG window element not found in DOM")
+                return
+
+            canvas = win_el.querySelector("canvas")
+            if not canvas:
+                log_debug("Canvas not found inside VDG window", "error")
+                print("Canvas not found inside VDG window")
+                return
+
+            ctx = canvas.getContext("2d")
+            if not ctx:
+                log_debug("Failed to get 2D context from canvas", "error")
+                print("Failed to get 2D context from canvas")
+                return
+
+            log_debug(f"Canvas initial size: {canvas.width}x{canvas.height}", "info")
+        except Exception as e:
+            log_debug(f"Error while getting canvas/context: {e}", "error")
+            print("Error while getting canvas/context:", e)
+            return
+
+        state = {"loaded": False}
+
+        def on_load(event):
+            state["loaded"] = True
+            log_debug("Image load event fired", "success")
+
+        global _onload_proxy
+        _onload_proxy = create_proxy(on_load)
+        try:
+            img.addEventListener("load", _onload_proxy)
+        except Exception as e:
+            log_debug(f"Failed to attach image load listener: {e}", "error")
+            print("Failed to attach image load listener:", e)
+
+        def draw(*_args):
+            if not state["loaded"]:
+                return
+
+            try:
+                w = int(canvas.width)
+                h = int(canvas.height)
+            except Exception as e:
+                log_debug(f"Error reading canvas size: {e}", "error")
+                print("Error reading canvas size:", e)
+                return
+
+            if w <= 0 or h <= 0:
+                return
+
+            try:
+                ctx.clearRect(0, 0, w, h)
+                ctx.drawImage(img, 0, 0, w, h)
+            except Exception as e:
+                log_debug(f"drawImage failed: {e}", "error")
+                print("drawImage failed:", e)
+
+        global _draw_proxy
+        _draw_proxy = create_proxy(draw)
+        try:
+            js.window.setInterval(_draw_proxy, 200)
+            log_debug("Started screenshot draw interval (200ms)", "info")
+        except Exception as e:
+            log_debug(f"Failed to start draw interval: {e}", "error")
+            print("Failed to start draw interval:", e)
+
+    main()
 
 Everything else is about how you structure your state and logic.
 
