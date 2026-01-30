@@ -581,17 +581,21 @@
             log.scrollTop = log.scrollHeight;
         }
 
-        const PYSCRIPT_VERSION = "2023.11.1";
+        // Newer PyScript release (includes Pyodide under the hood)
+        const PYSCRIPT_VERSION = "2026.1.1";
         const cssUrl = `https://pyscript.net/releases/${PYSCRIPT_VERSION}/core.css`;
         const jsUrl = `https://pyscript.net/releases/${PYSCRIPT_VERSION}/core.js`;
 
         function loadAssets() {
             logDebug("Initializing core components...");
             const link = document.createElement('link');
-            link.rel = 'stylesheet'; link.href = cssUrl;
+            link.rel = 'stylesheet'; 
+            link.href = cssUrl;
             document.head.appendChild(link);
+
             const script = document.createElement('script');
-            script.type = 'module'; script.src = jsUrl;
+            script.type = 'module'; 
+            script.src = jsUrl;
             document.head.appendChild(script);
         }
         loadAssets();
@@ -618,12 +622,12 @@
                     renderWhitespace: 'selection',
                     quickSuggestions: { other: true, comments: false, strings: false },
                     suggestOnTriggerCharacters: true,
-                    tabCompletion: 'on',            // Tab accepts best suggestion
-                    inlineSuggest: { enabled: true }, // Ghost text suggestions
-                    autoClosingBrackets: 'always',  // ( → ()
+                    tabCompletion: 'on',
+                    inlineSuggest: { enabled: true },
+                    autoClosingBrackets: 'always',
                     autoClosingQuotes: 'always',
                     autoSurround: 'languageDefined',
-                    insertSpaces: false             // Real tab characters
+                    insertSpaces: false
                 });
 
                 window.editor = editor;
@@ -826,8 +830,11 @@
 <input type="file" id="folder-import-input" style="display:none;" webkitdirectory directory onchange="handleFolderImport(event)">
 <input type="file" id="zip-import-input" style="display:none;" accept=".zip" onchange="handleZipImport(event)">
 
+<!-- New-style PyScript config JSON so JS can manage packages -->
 <py-config>
-    packages = ["numpy", "pandas"]
+{
+  "packages": ["numpy", "pandas"]
+}
 </py-config>
 
 <script type="py">
@@ -852,6 +859,7 @@
         user_val = js.window.prompt(prompt_text) or ""
         print(user_val) 
         
+        # Allow "pip install <pkg>" from input, delegate to JS installPackage
         if user_val.strip().lower().startswith("pip install "):
             parts = user_val.strip().split()
             if len(parts) >= 3:
@@ -886,7 +894,7 @@
         try:
             # Execute main code in global scope
             exec(code, globals())
-        except Exception as e:
+        except Exception:
             import traceback
             traceback.print_exc()
 
@@ -908,7 +916,7 @@
     ];
 
     /**
-     * WINDOW MANAGER
+     * WINDOW MANAGER - Virtual desktop windows for Python scripts
      */
     const WindowManager = {
         windows: {},
@@ -1004,6 +1012,7 @@
                 pos4 = e.clientY;
                 document.onmouseup = closeDragElement;
                 document.onmousemove = elementDrag;
+                // Bring to front
                 Object.values(this.windows).forEach(w => w.el.style.zIndex = 1000);
                 win.style.zIndex = 2000;
             };
@@ -1041,6 +1050,7 @@
                 document.onmousemove = resize;
                 document.onmouseup = stopResize;
 
+                // Bring to front
                 Object.values(this.windows).forEach(w => w.el.style.zIndex = 1000);
                 win.style.zIndex = 2000;
             };
@@ -1053,15 +1063,21 @@
                 win.style.width = newWidth + 'px';
                 win.style.height = newHeight + 'px';
 
+                // Update canvas size
                 const canvas = win.querySelector('canvas');
                 const ctx = canvas.getContext('2d');
+                
+                // Save current canvas content
                 const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                 
+                // Resize canvas
                 canvas.width = newWidth;
-                canvas.height = newHeight - 35;
+                canvas.height = newHeight - 35; // Subtract header height
                 
+                // Restore content (scaled)
                 ctx.putImageData(imageData, 0, 0);
                 
+                // Update stored reference
                 if (this.windows[id]) {
                     this.windows[id].canvas = canvas;
                     this.windows[id].ctx = ctx;
@@ -1080,6 +1096,7 @@
     window.js_bridge = {
         create_window: function(title, width, height) {
             const winId = WindowManager.create(title, width, height);
+            // Return an object with methods that Python can call
             return {
                 id: winId,
                 fill_rect: function(x, y, w, h, color) {
@@ -1108,15 +1125,21 @@ import js
 import time
 
 def main():
+    # Get the js_bridge module
     js_bridge = js.window.js_bridge
     
+    # Create a new window
     win = js_bridge.create_window("Graphics Demo", 400, 300)
+    
+    # Draw something
     win.fill_rect(50, 50, 100, 100, "red")
     win.draw_text(60, 80, "Hello from Python!", "white", "20px Arial")
     
+    # Create another window
     win2 = js_bridge.create_window("Animation", 300, 200)
     win2.fill_rect(0, 0, 300, 200, "#222")
     
+    # Simple animation
     for i in range(10):
         win2.clear()
         win2.fill_rect(10 + (i * 20), 50, 40, 40, "cyan")
@@ -1202,6 +1225,7 @@ main()`);
             list.appendChild(div);
         });
 
+        // Mirror to Desktop icons if VDG is active
         updateDesktopIcons();
     }
 
@@ -1210,6 +1234,7 @@ main()`);
             openTabs.push(filename);
         }
         switchFile(filename);
+        // If we were in VDG mode, go back to editor
         if (activeMode === 'vdg') {
             const editorIcon = document.querySelector('.activity-icon[title="File Explorer"]');
             switchMode('editor', editorIcon);
@@ -1423,34 +1448,34 @@ main()`);
         output.scrollTop = output.scrollHeight;
     };
 
-    // Package install helper - edits <py-config> packages list
+    // New workflow: manage <py-config> as JSON { "packages": [...] }
     window.installPackage = function(pkgName) {
         pkgName = (pkgName || "").trim();
         if (!pkgName) return;
-        appendTerminal(`\n[pip] Adding ${pkgName} to PyScript packages...\n`);
+        appendTerminal(`\n[pip] Collecting ${pkgName}...\n`);
         const config = document.querySelector('py-config');
         if (!config) {
             appendTerminal("[pip] Error: <py-config> not found.\n");
             return;
         }
-        let text = config.textContent.trim();
-        const match = text.match(/packages\s*=\s*\[([^\]]*)\]/m);
-        let packages = [];
-        if (match) {
-            const inner = match[1];
-            if (inner.trim().length) {
-                packages = inner.split(',').map(s => s.replace(/['"\s]/g, '')).filter(Boolean);
-            }
+        let data;
+        try {
+            const raw = config.textContent.trim() || "{}";
+            data = JSON.parse(raw);
+        } catch (e) {
+            appendTerminal(`[pip] Error: could not parse <py-config> as JSON: ${e.message}\n`);
+            return;
         }
-        if (packages.includes(pkgName)) {
+        if (!Array.isArray(data.packages)) {
+            data.packages = [];
+        }
+        if (data.packages.includes(pkgName)) {
             appendTerminal(`[pip] Requirement already satisfied: ${pkgName}\n`);
             return;
         }
-        packages.push(pkgName);
-        const newInner = packages.map(p => `"${p}"`).join(", ");
-        const newText = text.replace(/packages\s*=\s*\[[^\]]*\]/m, `packages = [${newInner}]`);
-        config.textContent = newText;
-        appendTerminal(`[pip] Added ${pkgName}. Reload the page to load this package into Pyodide.\n`);
+        data.packages.push(pkgName);
+        config.textContent = JSON.stringify(data, null, 2);
+        appendTerminal(`[pip] Successfully added ${pkgName} to PyScript config. Reload the page to load this package.\n`);
     };
 
     // Package manager UI
@@ -1513,6 +1538,7 @@ main()`);
 
     function switchMode(mode, el) {
         activeMode = mode;
+        // Icons
         document.querySelectorAll('.activity-icon').forEach(i => i.classList.remove('active'));
         el.classList.add('active');
 
@@ -1545,6 +1571,7 @@ main()`);
         const desktop = document.getElementById('vdg-desktop');
         if (activeMode !== 'vdg') return;
         
+        // Clear only icons, not windows
         const icons = desktop.querySelectorAll('.desktop-icon');
         icons.forEach(icon => icon.remove());
         
