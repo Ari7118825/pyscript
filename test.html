@@ -69,7 +69,7 @@
             display: flex; 
             flex-direction: column;
             border-right: 1px solid var(--border-color);
-            transition: width 0.3s;
+            transition: width 0.2s;
         }
         
         .sidebar-header {
@@ -127,6 +127,37 @@
         .action-icon { cursor: pointer; padding: 0 4px; font-size: 12px; }
         .action-icon:hover { opacity: 1 !important; color: white; }
 
+        /* Package Manager in Sidebar */
+        #package-manager {
+            padding: 8px 10px;
+            border-top: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--border-color);
+            font-size: 11px;
+        }
+        #package-manager .pkg-header {
+            font-weight: bold;
+            margin-bottom: 4px;
+            color: #cccccc;
+        }
+        #pkg-results {
+            max-height: 120px;
+            overflow-y: auto;
+            margin-top: 4px;
+        }
+        .pkg-item {
+            padding: 3px 4px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .pkg-item:hover {
+            background: #333333;
+        }
+        .pkg-item span {
+            font-size: 10px;
+            opacity: 0.7;
+            margin-left: 4px;
+        }
+
         /* Import/Export Footer in Sidebar */
         .sidebar-footer {
             padding: 10px;
@@ -146,6 +177,13 @@
         }
         .footer-btn:hover { background: #444; }
 
+        /* Resizer between sidebar and workspace */
+        #sidebar-resizer {
+            width: 4px;
+            cursor: col-resize;
+            background: #333333;
+        }
+
         /* Main Workspace Container */
         #workspace {
             flex-grow: 1;
@@ -162,12 +200,6 @@
             min-width: 0;
             position: relative;
             background: var(--bg-main);
-        }
-
-        /* Monaco editor host */
-        #code-editor {
-            flex: 1;
-            min-height: 0;
         }
 
         #tabs-bar {
@@ -216,7 +248,13 @@
             border-bottom: 1px solid var(--border-color); 
         }
 
-        /* Keep textarea as fallback but hidden when Monaco is available */
+        /* Monaco editor host */
+        #code-editor {
+            flex: 1;
+            min-height: 0;
+        }
+
+        /* Fallback textarea (hidden when Monaco is used) */
         textarea { 
             display: none;
             background: var(--bg-main); 
@@ -258,6 +296,15 @@
             to { transform: translateX(0); opacity: 1; }
         }
 
+        /* Resize handle between editor and bottom panels */
+        #editor-resize-handle {
+            height: 6px;
+            background: #333333;
+            cursor: row-resize;
+            border-top: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--border-color);
+        }
+
         /* Bottom Panels */
         #bottom-panels { 
             height: 280px; 
@@ -266,15 +313,6 @@
             display: flex; 
             border-top: 1px solid var(--border-color);
             background: var(--bg-main);
-        }
-
-        /* Horizontal resize handle between editor and bottom panels */
-        #editor-resize-handle {
-            height: 6px;
-            background: #333333;
-            cursor: row-resize;
-            border-top: 1px solid var(--border-color);
-            border-bottom: 1px solid var(--border-color);
         }
 
         /* Vertical splitter between terminal and logs */
@@ -314,6 +352,12 @@
             font-family: 'Consolas', monospace; 
             font-size: 13px; 
             white-space: pre-wrap; 
+        }
+
+        #logs-area {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
         }
 
         #debug-log { 
@@ -458,7 +502,7 @@
             cursor: pointer;
         }
 
-        /* Virtual Desktop Windows - From test.html */
+        /* Virtual Desktop Windows */
         .vd-window {
             position: absolute;
             min-width: 300px;
@@ -512,7 +556,6 @@
             height: 100%;
         }
 
-        /* Resize handle for windows */
         .win-resize {
             position: absolute;
             bottom: 0;
@@ -522,7 +565,6 @@
             cursor: nwse-resize;
             background: linear-gradient(135deg, transparent 50%, #666 50%);
         }
-
         .win-resize:hover {
             background: linear-gradient(135deg, transparent 50%, #888 50%);
         }
@@ -555,7 +597,7 @@
         loadAssets();
     </script>
 
-    <!-- Monaco Editor (VS Code-like editor) -->
+    <!-- Monaco Editor loader -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
     <script>
         let editor = null;
@@ -574,9 +616,18 @@
                     scrollBeyondLastLine: false,
                     wordWrap: 'on',
                     renderWhitespace: 'selection',
-                    quickSuggestions: true,
-                    suggestOnTriggerCharacters: true
+                    quickSuggestions: { other: true, comments: false, strings: false },
+                    suggestOnTriggerCharacters: true,
+                    tabCompletion: 'on',            // Tab accepts best suggestion
+                    inlineSuggest: { enabled: true }, // Ghost text suggestions
+                    autoClosingBrackets: 'always',  // ( → ()
+                    autoClosingQuotes: 'always',
+                    autoSurround: 'languageDefined',
+                    insertSpaces: false             // Real tab characters
                 });
+
+                window.editor = editor;
+                editor.focus();
 
                 // Basic Python snippet completions
                 monaco.languages.registerCompletionItemProvider('python', {
@@ -670,6 +721,17 @@
             <code style="background:#1a1a1a; padding:2px 5px; display:block; margin-top:5px;">import js<br>from js import document<br>js_bridge = js.window.js_bridge<br>js_bridge.create_window("Test", 400, 300)</code>
         </div>
     </div>
+
+    <!-- Package Manager -->
+    <div id="package-manager">
+        <div class="pkg-header">Pyodide Packages</div>
+        <input type="text" id="pkg-search" placeholder="Search packages..." oninput="onPackageSearchInput(event)">
+        <div id="pkg-results"></div>
+        <div style="display:flex; gap:4px; margin-top:6px;">
+            <input type="text" id="pkg-name-input" placeholder="Install by name...">
+            <button style="font-size:10px; padding:4px 6px;" onclick="manualInstallPackage()">Install</button>
+        </div>
+    </div>
     
     <div class="sidebar-footer">
         <div class="footer-btn" onclick="triggerImport('file')">📥 Import File</div>
@@ -678,6 +740,8 @@
         <div class="footer-btn" onclick="triggerImport('zip')">📦 Unzip File</div>
     </div>
 </div>
+
+<div id="sidebar-resizer"></div>
 
 <div id="workspace">
     <div id="editor-container">
@@ -708,10 +772,9 @@
                 <div id="output">System: Booting Python environment...</div>
             </div>
 
-            <!-- Vertical splitter between terminal and logs -->
             <div id="bottom-splitter"></div>
 
-            <div id="logs-area" style="display: flex; flex-direction: column; flex: 1;">
+            <div id="logs-area">
                 <div class="panel-header">Logs</div>
                 <div id="debug-log">
                     <div class="log-entry">--- Session Started ---</div>
@@ -790,9 +853,11 @@
         print(user_val) 
         
         if user_val.strip().lower().startswith("pip install "):
-            pkg = user_val.strip().split(" ")[2]
-            js.installPackage(pkg)
-            return ""
+            parts = user_val.strip().split()
+            if len(parts) >= 3:
+                pkg = parts[2]
+                js.installPackage(pkg)
+                return ""
             
         return user_val
 
@@ -836,9 +901,14 @@
     let currentImportType = null;
     let activeMode = 'editor';
 
+    const PYODIDE_PACKAGES = [
+        "numpy","pandas","matplotlib","scipy","sympy","scikit-learn",
+        "requests","networkx","pillow","pyyaml","sqlalchemy","statsmodels",
+        "beautifulsoup4","lxml","pytest","bokeh","xarray","seaborn"
+    ];
+
     /**
-     * WINDOW MANAGER - From test.html
-     * Manages virtual desktop windows that Python scripts can create
+     * WINDOW MANAGER
      */
     const WindowManager = {
         windows: {},
@@ -934,7 +1004,6 @@
                 pos4 = e.clientY;
                 document.onmouseup = closeDragElement;
                 document.onmousemove = elementDrag;
-                // Bring to front
                 Object.values(this.windows).forEach(w => w.el.style.zIndex = 1000);
                 win.style.zIndex = 2000;
             };
@@ -972,7 +1041,6 @@
                 document.onmousemove = resize;
                 document.onmouseup = stopResize;
 
-                // Bring to front
                 Object.values(this.windows).forEach(w => w.el.style.zIndex = 1000);
                 win.style.zIndex = 2000;
             };
@@ -985,21 +1053,15 @@
                 win.style.width = newWidth + 'px';
                 win.style.height = newHeight + 'px';
 
-                // Update canvas size
                 const canvas = win.querySelector('canvas');
                 const ctx = canvas.getContext('2d');
-                
-                // Save current canvas content
                 const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                 
-                // Resize canvas
                 canvas.width = newWidth;
-                canvas.height = newHeight - 35; // Subtract header height
+                canvas.height = newHeight - 35;
                 
-                // Restore content (scaled)
                 ctx.putImageData(imageData, 0, 0);
                 
-                // Update stored reference
                 if (this.windows[id]) {
                     this.windows[id].canvas = canvas;
                     this.windows[id].ctx = ctx;
@@ -1018,7 +1080,6 @@
     window.js_bridge = {
         create_window: function(title, width, height) {
             const winId = WindowManager.create(title, width, height);
-            // Return an object with methods that Python can call
             return {
                 id: winId,
                 fill_rect: function(x, y, w, h, color) {
@@ -1047,21 +1108,15 @@ import js
 import time
 
 def main():
-    # Get the js_bridge module
     js_bridge = js.window.js_bridge
     
-    # Create a new window
     win = js_bridge.create_window("Graphics Demo", 400, 300)
-    
-    # Draw something
     win.fill_rect(50, 50, 100, 100, "red")
     win.draw_text(60, 80, "Hello from Python!", "white", "20px Arial")
     
-    # Create another window
     win2 = js_bridge.create_window("Animation", 300, 200)
     win2.fill_rect(0, 0, 300, 200, "#222")
     
-    # Simple animation
     for i in range(10):
         win2.clear()
         win2.fill_rect(10 + (i * 20), 50, 40, 40, "cyan")
@@ -1147,7 +1202,6 @@ main()`);
             list.appendChild(div);
         });
 
-        // Mirror to Desktop icons if VDG is active
         updateDesktopIcons();
     }
 
@@ -1156,7 +1210,6 @@ main()`);
             openTabs.push(filename);
         }
         switchFile(filename);
-        // If we were in VDG mode, maybe we want to go back to editor
         if (activeMode === 'vdg') {
             const editorIcon = document.querySelector('.activity-icon[title="File Explorer"]');
             switchMode('editor', editorIcon);
@@ -1370,22 +1423,67 @@ main()`);
         output.scrollTop = output.scrollHeight;
     };
 
+    // Package install helper - edits <py-config> packages list
     window.installPackage = function(pkgName) {
-        appendTerminal(`\n[pip] Collecting ${pkgName}...\n`);
+        pkgName = (pkgName || "").trim();
+        if (!pkgName) return;
+        appendTerminal(`\n[pip] Adding ${pkgName} to PyScript packages...\n`);
         const config = document.querySelector('py-config');
-        try {
-            const currentPackages = JSON.parse(config.textContent).packages;
-            if (!currentPackages.includes(pkgName)) {
-                currentPackages.push(pkgName);
-                config.textContent = JSON.stringify({ packages: currentPackages });
-                appendTerminal(`[pip] Successfully installed ${pkgName}. Restarting runtime...\n`);
-            } else {
-                appendTerminal(`[pip] Requirement already satisfied: ${pkgName}\n`);
-            }
-        } catch(e) {
-            appendTerminal(`[pip] Error: ${e.message}\n`);
+        if (!config) {
+            appendTerminal("[pip] Error: <py-config> not found.\n");
+            return;
         }
+        let text = config.textContent.trim();
+        const match = text.match(/packages\s*=\s*\[([^\]]*)\]/m);
+        let packages = [];
+        if (match) {
+            const inner = match[1];
+            if (inner.trim().length) {
+                packages = inner.split(',').map(s => s.replace(/['"\s]/g, '')).filter(Boolean);
+            }
+        }
+        if (packages.includes(pkgName)) {
+            appendTerminal(`[pip] Requirement already satisfied: ${pkgName}\n`);
+            return;
+        }
+        packages.push(pkgName);
+        const newInner = packages.map(p => `"${p}"`).join(", ");
+        const newText = text.replace(/packages\s*=\s*\[[^\]]*\]/m, `packages = [${newInner}]`);
+        config.textContent = newText;
+        appendTerminal(`[pip] Added ${pkgName}. Reload the page to load this package into Pyodide.\n`);
     };
+
+    // Package manager UI
+    function renderPackageResults(filter = "") {
+        const resultsEl = document.getElementById('pkg-results');
+        if (!resultsEl) return;
+        const q = filter.trim().toLowerCase();
+        const matches = PYODIDE_PACKAGES.filter(name => !q || name.toLowerCase().includes(q));
+        resultsEl.innerHTML = "";
+        if (!matches.length) {
+            resultsEl.innerHTML = '<div style="opacity:0.6;">No matches in built-in list.</div>';
+            return;
+        }
+        matches.slice(0, 50).forEach(name => {
+            const div = document.createElement('div');
+            div.className = 'pkg-item';
+            div.innerHTML = `<strong>${name}</strong><span>click to install</span>`;
+            div.onclick = () => window.installPackage(name);
+            resultsEl.appendChild(div);
+        });
+    }
+
+    function onPackageSearchInput(e) {
+        renderPackageResults(e.target.value || "");
+    }
+
+    function manualInstallPackage() {
+        const input = document.getElementById('pkg-name-input');
+        if (!input) return;
+        const name = input.value.trim();
+        if (!name) return;
+        window.installPackage(name);
+    }
 
     async function runPythonCode() {
         const runBtn = document.getElementById('run-btn');
@@ -1415,7 +1513,6 @@ main()`);
 
     function switchMode(mode, el) {
         activeMode = mode;
-        // Icons
         document.querySelectorAll('.activity-icon').forEach(i => i.classList.remove('active'));
         el.classList.add('active');
 
@@ -1448,7 +1545,6 @@ main()`);
         const desktop = document.getElementById('vdg-desktop');
         if (activeMode !== 'vdg') return;
         
-        // Clear only icons, not windows
         const icons = desktop.querySelectorAll('.desktop-icon');
         icons.forEach(icon => icon.remove());
         
@@ -1477,7 +1573,7 @@ main()`);
         document.getElementById('vdg-clock').innerText = timeStr;
     }
 
-    // Initialize vertical resizer between editor and bottom panels
+    // Resizer between editor and bottom panels
     function initResizers() {
         const handle = document.getElementById('editor-resize-handle');
         const bottomPanels = document.getElementById('bottom-panels');
@@ -1513,7 +1609,7 @@ main()`);
         });
     }
 
-    // Initialize splitter between terminal and logs
+    // Splitter between terminal and logs
     function initBottomSplitter() {
         const splitter = document.getElementById('bottom-splitter');
         const term = document.getElementById('terminal-area');
@@ -1553,6 +1649,41 @@ main()`);
         });
     }
 
+    // Sidebar resizer
+    function initSidebarResizer() {
+        const resizer = document.getElementById('sidebar-resizer');
+        const sidebar = document.getElementById('sidebar');
+        if (!resizer || !sidebar) return;
+
+        let dragging = false;
+        let startX = 0;
+        let startWidth = 0;
+
+        resizer.addEventListener('mousedown', (e) => {
+            dragging = true;
+            startX = e.clientX;
+            startWidth = sidebar.offsetWidth;
+            document.body.style.userSelect = 'none';
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!dragging) return;
+            const dx = e.clientX - startX;
+            let newWidth = startWidth + dx;
+            const minWidth = 150;
+            const maxWidth = 500;
+            if (newWidth < minWidth) newWidth = minWidth;
+            if (newWidth > maxWidth) newWidth = maxWidth;
+            sidebar.style.width = newWidth + 'px';
+        });
+
+        window.addEventListener('mouseup', () => {
+            if (!dragging) return;
+            dragging = false;
+            document.body.style.userSelect = '';
+        });
+    }
+
     window.addEventListener('load', () => {
         updateFileList();
         updateTabs();
@@ -1571,7 +1702,9 @@ main()`);
 
         initResizers();
         initBottomSplitter();
-        
+        initSidebarResizer();
+        renderPackageResults("");
+
         setInterval(() => {
             if (typeof window.run_user_code_internal === 'function' && document.getElementById('output').innerHTML.includes("Booting")) {
                 document.getElementById('output').innerHTML = "--- Terminal Ready ---\n";
