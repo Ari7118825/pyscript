@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>Python Browser IDE</title>
     
+    <!-- JSZip for Zip handling -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
     <style id="pyscript-styles">
         :root {
             --bg-darker: #181818;
@@ -57,7 +60,7 @@
 
         /* Sidebar */
         #sidebar { 
-            width: 240px; 
+            width: 260px; 
             background: var(--bg-sidebar); 
             display: flex; 
             flex-direction: column;
@@ -118,6 +121,25 @@
         .file-item:hover .item-actions, .folder-item:hover .item-actions { opacity: 0.7; }
         .action-icon { cursor: pointer; padding: 0 4px; font-size: 12px; }
         .action-icon:hover { opacity: 1 !important; color: white; }
+
+        /* Import/Export Footer in Sidebar */
+        .sidebar-footer {
+            padding: 10px;
+            border-top: 1px solid var(--border-color);
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5px;
+        }
+        .footer-btn {
+            font-size: 10px;
+            background: #333;
+            padding: 5px;
+            text-align: center;
+            border-radius: 3px;
+            cursor: pointer;
+            border: 1px solid #444;
+        }
+        .footer-btn:hover { background: #444; }
 
         /* Editor Area */
         #editor-container { 
@@ -267,6 +289,26 @@
         .log-error { color: var(--error); }
         .log-success { color: var(--success); }
 
+        /* Modal for Import Options */
+        #import-modal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+        .modal-content {
+            background: var(--bg-sidebar);
+            padding: 20px;
+            border-radius: 5px;
+            border: 1px solid var(--border-color);
+            width: 350px;
+        }
+        .modal-title { font-weight: bold; margin-bottom: 15px; display: block; }
+        .modal-btns { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+
         /* Buttons & Inputs */
         button { 
             cursor: pointer; 
@@ -358,6 +400,13 @@
         <button onclick="hideNewInput()" style="background:#555">X</button>
     </div>
     <div id="file-list"></div>
+    
+    <div class="sidebar-footer">
+        <div class="footer-btn" onclick="triggerImport('file')">📥 Import File</div>
+        <div class="footer-btn" onclick="triggerImport('folder')">📂 Import Folder</div>
+        <div class="footer-btn" onclick="exportFilesystem()">📤 Export FS</div>
+        <div class="footer-btn" onclick="triggerImport('zip')">📦 Unzip File</div>
+    </div>
 </div>
 
 <div id="editor-container">
@@ -393,6 +442,31 @@
         <div id="status-right">UTF-8</div>
     </div>
 </div>
+
+<!-- Import Settings Modal -->
+<div id="import-modal">
+    <div class="modal-content">
+        <span class="modal-title">Import Options</span>
+        <p style="font-size: 12px; color: #aaa;">How should we handle these files?</p>
+        <div style="display: flex; flex-direction: column; gap: 10px; margin: 15px 0;">
+            <label style="font-size: 12px; display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="radio" name="import-mode" value="merge" checked> Merge with existing
+            </label>
+            <label style="font-size: 12px; display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="radio" name="import-mode" value="overwrite"> Overwrite entire filesystem
+            </label>
+        </div>
+        <div class="modal-btns">
+            <button onclick="closeImportModal()" style="background: #555;">Cancel</button>
+            <button onclick="startImportProcess()">Import</button>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden Inputs -->
+<input type="file" id="file-import-input" style="display:none;" onchange="handleFileImport(event)">
+<input type="file" id="folder-import-input" style="display:none;" webkitdirectory directory onchange="handleFolderImport(event)">
+<input type="file" id="zip-import-input" style="display:none;" accept=".zip" onchange="handleZipImport(event)">
 
 <py-config>
     packages = ["numpy", "pandas"]
@@ -458,6 +532,8 @@
     let currentFile = "main.py";
     let openTabs = ["main.py"];
     let newItemType = 'file';
+    let pendingImportFiles = null;
+    let currentImportType = null;
 
     // Initial check
     if (!localStorage.getItem("main.py")) {
@@ -480,6 +556,8 @@
             setTimeout(() => toast.remove(), 300);
         }, 3000);
     }
+
+    /* FS OPERATIONS */
 
     function updateTabs() {
         const bar = document.getElementById('tabs-bar');
@@ -522,7 +600,7 @@
         });
 
         // Files
-        keys.filter(k => !k.startsWith('FOLDER_') && k !== 'loglevel:webpack-dev-server').forEach(key => {
+        keys.filter(k => !k.startsWith('FOLDER_') && k !== 'loglevel:webpack-dev-server' && k !== 'pyscript-styles').forEach(key => {
             const div = document.createElement('div');
             div.className = `file-item ${key === currentFile ? 'active' : ''}`;
             const icon = key.endsWith('.py') ? '🐍' : '📄';
@@ -573,6 +651,120 @@
         }
     }
 
+    /* IMPORT / EXPORT LOGIC */
+
+    function triggerImport(type) {
+        currentImportType = type;
+        if (type === 'file') document.getElementById('file-import-input').click();
+        else if (type === 'folder') document.getElementById('folder-import-input').click();
+        else if (type === 'zip') document.getElementById('zip-import-input').click();
+    }
+
+    function handleFileImport(e) {
+        pendingImportFiles = e.target.files;
+        showImportModal();
+    }
+
+    function handleFolderImport(e) {
+        pendingImportFiles = e.target.files;
+        showImportModal();
+    }
+
+    function handleZipImport(e) {
+        pendingImportFiles = e.target.files[0];
+        showImportModal();
+    }
+
+    function showImportModal() {
+        document.getElementById('import-modal').style.display = 'flex';
+    }
+
+    function closeImportModal() {
+        document.getElementById('import-modal').style.display = 'none';
+        pendingImportFiles = null;
+    }
+
+    async function startImportProcess() {
+        const mode = document.querySelector('input[name="import-mode"]:checked').value;
+        if (mode === 'overwrite') {
+            localStorage.clear();
+            openTabs = [];
+            currentFile = "";
+        }
+
+        if (currentImportType === 'zip') {
+            await processZip(pendingImportFiles);
+        } else {
+            await processFileArray(pendingImportFiles);
+        }
+
+        closeImportModal();
+        updateFileList();
+        updateTabs();
+        logDebug("Import completed successfully.", "success");
+    }
+
+    async function processFileArray(files) {
+        for (let file of files) {
+            // webkitRelativePath gives folder structure for folder uploads
+            const path = file.webkitRelativePath || file.name;
+            const content = await file.text();
+            
+            // Handle folder parts if uploading folder
+            if (path.includes('/')) {
+                const parts = path.split('/');
+                for(let i=0; i < parts.length - 1; i++) {
+                    localStorage.setItem(`FOLDER_${parts[i]}`, "dir");
+                }
+            }
+            
+            localStorage.setItem(path, content);
+            if (!openTabs.includes(path)) openTabs.push(path);
+            currentFile = path;
+        }
+    }
+
+    async function processZip(zipFile) {
+        const zip = await JSZip.loadAsync(zipFile);
+        for (let filename in zip.files) {
+            const file = zip.files[filename];
+            if (!file.dir) {
+                const content = await file.async("string");
+                localStorage.setItem(filename, content);
+                if (!openTabs.includes(filename)) openTabs.push(filename);
+                currentFile = filename;
+            } else {
+                localStorage.setItem(`FOLDER_${filename.replace(/\/$/, '')}`, "dir");
+            }
+        }
+    }
+
+    async function exportFilesystem() {
+        const zip = new JSZip();
+        const keys = Object.keys(localStorage);
+        
+        keys.forEach(k => {
+            if (k.startsWith('FOLDER_')) {
+                zip.folder(k.replace('FOLDER_', ''));
+            } else if (k !== 'pyscript-styles' && !k.startsWith('loglevel:')) {
+                zip.file(k, localStorage.getItem(k));
+            }
+        });
+
+        const blob = await zip.generateAsync({type:"blob"});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `workspace_export_${new Date().getTime()}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        logDebug("Filesystem exported as Zip.", "success");
+    }
+
+    /* SIDEBAR ACTIONS */
+
     function renameItem(key) {
         const isFolder = key.startsWith('FOLDER_');
         const oldName = isFolder ? key.replace('FOLDER_', '') : key;
@@ -585,7 +777,6 @@
             localStorage.removeItem(key);
             
             if (!isFolder) {
-                // Update tabs
                 openTabs = openTabs.map(t => t === oldName ? newName : t);
                 if (currentFile === oldName) currentFile = newName;
             }
