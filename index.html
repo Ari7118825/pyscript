@@ -334,8 +334,17 @@
 
     def custom_input(prompt_text=""):
         if prompt_text:
+            # Print the prompt text
             print(prompt_text, end="")
-        return js.window.prompt(prompt_text) or ""
+        
+        # Get user input via JS prompt
+        user_val = js.window.prompt(prompt_text) or ""
+        
+        # Echo the user's input back to terminal followed by a newline 
+        # to ensure following prints start on a new line
+        print(user_val) 
+        
+        return user_val
 
     builtins.input = custom_input
 
@@ -366,7 +375,7 @@
     let currentFile = "main.py";
 
     if (!localStorage.getItem("main.py")) {
-        localStorage.setItem("main.py", "import numpy as np\n\nprint('Hello from VS Code Clone!')\nname = input('What is your name? ')\nprint(f'Greetings, {name}!')\n\na = np.random.rand(3)\nprint(f'Random Numpy values: {a}')");
+        localStorage.setItem("main.py", "a = input('Input a number: ')\nb = input('Input a second number: ')\nc = int(a) + int(b)\n\nprint(f'The sum is {c}')");
     }
 
     function updateFileList() {
