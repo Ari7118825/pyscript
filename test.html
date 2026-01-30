@@ -10,111 +10,87 @@
 
     <style id="pyscript-styles">
         :root {
-            /* VSCode Dark+ Theme Colors */
+            /* Enhanced VS Code-like color scheme */
             --bg-darker: #0e0e0e;
             --bg-main: #1e1e1e;
             --bg-sidebar: #252526;
             --bg-activity: #333333;
-            --bg-activity-active: #0e639c;
+            --bg-editor: #1e1e1e;
             --border-color: #3c3c3c;
             --text-main: #cccccc;
             --text-bright: #ffffff;
-            --text-dim: #888888;
+            --text-muted: #858585;
             --accent: #007acc;
             --accent-hover: #118ad4;
+            --accent-light: #3794ff;
             --error: #f48771;
-            --success: #73c991;
-            --warning: #e5b567;
+            --success: #75beff;
+            --warning: #cca700;
             --vdg-bg: #1e1e2e;
-            --tab-active-top: #007acc;
+            --tab-active-bg: #1e1e1e;
+            --tab-inactive-bg: #2d2d30;
             --scrollbar: #424242;
             --scrollbar-hover: #4a4a4a;
         }
 
-        /* Scrollbar styling like VSCode */
-        ::-webkit-scrollbar {
-            width: 10px;
-            height: 10px;
-        }
-        ::-webkit-scrollbar-track {
-            background: var(--bg-main);
-        }
-        ::-webkit-scrollbar-thumb {
-            background: var(--scrollbar);
-            border-radius: 5px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: var(--scrollbar-hover);
-        }
-
         body { 
-            font-family: 'Segoe UI', 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif; 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; 
             display: flex; 
             height: 100vh; 
             margin: 0; 
             background: var(--bg-main); 
             color: var(--text-main); 
-            overflow: hidden;
+            overflow: hidden; 
             font-size: 13px;
+            line-height: 1.4;
         }
 
-        /* Activity Bar - VSCode Style */
+        /* Activity Bar - VS Code style */
         #activity-bar {
             width: 50px;
-            background: var(--bg-sidebar);
+            background: var(--bg-activity);
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding-top: 10px;
+            padding-top: 20px;
             gap: 8px;
-            z-index: 1001;
             border-right: 1px solid var(--border-color);
+            z-index: 1001;
         }
 
         .activity-icon {
-            color: var(--text-dim);
+            color: #858585;
             font-size: 18px;
             cursor: pointer;
-            padding: 12px 0;
+            padding: 14px 0;
             width: 100%;
             text-align: center;
-            transition: all 0.15s cubic-bezier(0.4, 0.0, 0.2, 1);
+            transition: all 0.15s ease;
             position: relative;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 48px;
+            border-left: 2px solid transparent;
         }
         .activity-icon:hover { 
-            color: var(--text-bright); 
-            background: rgba(255,255,255,0.04);
+            color: #d4d4d4; 
+            background: rgba(255,255,255,0.05);
         }
         .activity-icon.active {
-            color: var(--text-bright);
-            background: var(--bg-activity-active);
-        }
-        .activity-icon.active::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 0;
-            height: 100%;
-            width: 2px;
-            background: var(--text-bright);
+            color: white;
+            border-left: 2px solid var(--accent);
+            background: rgba(255,255,255,0.05);
         }
 
-        /* Sidebar - VSCode Style */
+        /* Sidebar - Improved VS Code style */
         #sidebar { 
             width: 280px; 
             background: var(--bg-sidebar); 
             display: flex; 
             flex-direction: column;
             border-right: 1px solid var(--border-color);
-            transition: width 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
+            transition: width 0.2s;
         }
         
         .sidebar-header {
-            padding: 8px 14px;
+            padding: 8px 16px;
             text-transform: uppercase;
             font-size: 10px;
             font-weight: 600;
@@ -124,7 +100,7 @@
             justify-content: space-between;
             align-items: center;
             border-bottom: 1px solid var(--border-color);
-            height: 35px;
+            height: 36px;
             box-sizing: border-box;
         }
 
@@ -135,13 +111,14 @@
 
         .sidebar-actions span {
             cursor: pointer;
-            opacity: 0.6;
-            font-size: 14px;
-            transition: opacity 0.2s;
+            opacity: 0.7;
+            font-size: 16px;
+            padding: 2px;
+            border-radius: 3px;
         }
         .sidebar-actions span:hover { 
             opacity: 1; 
-            color: var(--text-bright);
+            background: rgba(255,255,255,0.1);
         }
 
         #file-list { 
@@ -150,89 +127,109 @@
             padding: 4px 0;
         }
         
+        /* Custom scrollbar */
+        #file-list::-webkit-scrollbar {
+            width: 10px;
+        }
+        #file-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        #file-list::-webkit-scrollbar-thumb {
+            background: var(--scrollbar);
+            border-radius: 4px;
+        }
+        #file-list::-webkit-scrollbar-thumb:hover {
+            background: var(--scrollbar-hover);
+        }
+        
         .folder-item {
-            font-size: 13px;
-            padding: 4px 8px 4px 20px;
-            color: var(--text-main);
+            font-size: 12px;
+            padding: 4px 16px;
+            color: #cccccc;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            cursor: pointer;
-            transition: background 0.1s;
-            height: 22px;
+            background: transparent;
+            margin-bottom: 1px;
+            height: 24px;
+            box-sizing: border-box;
         }
-        .folder-item:hover { background: rgba(255,255,255,0.04); }
+        .folder-item:hover {
+            background: rgba(90, 93, 94, 0.31);
+        }
 
         .file-item { 
             cursor: pointer; 
-            padding: 4px 8px 4px 28px; 
-            font-size: 13px; 
+            padding: 4px 16px 4px 28px; 
+            font-size: 12px; 
             display: flex; 
             align-items: center; 
             justify-content: space-between;
             transition: background 0.1s; 
-            height: 22px;
-            position: relative;
+            height: 24px;
+            box-sizing: border-box;
         }
-        .file-item:hover { background: rgba(255,255,255,0.04); }
+        .file-item:hover { 
+            background: rgba(90, 93, 94, 0.31); 
+        }
         .file-item.active { 
-            background: rgba(255,255,255,0.06); 
-            color: var(--text-bright);
-        }
-        .file-item.active::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 0;
-            height: 100%;
-            width: 2px;
-            background: var(--accent);
+            background: #094771; 
+            color: white; 
+            border-left: 2px solid var(--accent);
         }
         
         .item-label { 
             display: flex; 
             align-items: center; 
-            gap: 6px; 
+            gap: 8px; 
             flex-grow: 1; 
             overflow: hidden; 
             text-overflow: ellipsis; 
-            white-space: nowrap;
-            font-family: 'Segoe UI', sans-serif;
+            white-space: nowrap; 
+            user-select: none;
         }
         .item-actions { 
             display: flex; 
             gap: 4px; 
-            opacity: 0;
-            transition: opacity 0.15s;
+            opacity: 0; 
+            transition: opacity 0.2s;
         }
-        .file-item:hover .item-actions, 
-        .folder-item:hover .item-actions { 
-            opacity: 0.7; 
+        .file-item:hover .item-actions, .folder-item:hover .item-actions { 
+            opacity: 1; 
         }
         .action-icon { 
             cursor: pointer; 
             padding: 2px; 
-            font-size: 11px;
+            font-size: 12px; 
             border-radius: 3px;
-            transition: background 0.15s;
         }
         .action-icon:hover { 
-            opacity: 1 !important; 
-            color: var(--text-bright);
-            background: rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.1); 
+            color: white; 
         }
 
-        /* Package Manager */
+        /* Image preview styling for file list */
+        .file-item[data-type^="image"] .item-label::before {
+            content: "🖼️";
+            font-size: 14px;
+        }
+        .file-item[data-type="image/png"] .item-label::before { content: "🖼️"; }
+        .file-item[data-type="image/jpeg"] .item-label::before { content: "🖼️"; }
+        .file-item[data-type="image/jpg"] .item-label::before { content: "🖼️"; }
+        .file-item[data-type="image/gif"] .item-label::before { content: "🖼️"; }
+        .file-item[data-type="image/svg+xml"] .item-label::before { content: "🖼️"; }
+
+        /* Package Manager in Sidebar */
         #package-manager {
-            padding: 12px 14px;
+            padding: 12px 16px;
             border-top: 1px solid var(--border-color);
             border-bottom: 1px solid var(--border-color);
             font-size: 11px;
         }
         #package-manager .pkg-header {
             font-weight: 600;
-            margin-bottom: 8px;
-            color: var(--text-main);
+            margin-bottom: 6px;
+            color: #cccccc;
             font-size: 10px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -241,65 +238,57 @@
             max-height: 120px;
             overflow-y: auto;
             margin-top: 6px;
-            border-radius: 3px;
-            background: rgba(0,0,0,0.2);
         }
         .pkg-item {
-            padding: 5px 8px;
-            border-radius: 2px;
+            padding: 4px 6px;
+            border-radius: 3px;
             cursor: pointer;
-            font-size: 12px;
-            transition: background 0.15s;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            font-size: 11px;
         }
         .pkg-item:hover {
-            background: rgba(255,255,255,0.06);
+            background: #333333;
         }
         .pkg-item span {
             font-size: 10px;
-            opacity: 0.6;
+            opacity: 0.7;
+            margin-left: 4px;
         }
 
-        /* Import/Export Footer */
+        /* Import/Export Footer in Sidebar */
         .sidebar-footer {
             padding: 12px;
             border-top: 1px solid var(--border-color);
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 8px;
+            gap: 6px;
         }
         .footer-btn {
-            font-size: 11px;
-            background: rgba(255,255,255,0.08);
-            padding: 6px 8px;
+            font-size: 10px;
+            background: #333;
+            padding: 6px;
             text-align: center;
             border-radius: 3px;
             cursor: pointer;
-            border: 1px solid rgba(255,255,255,0.1);
-            transition: all 0.15s;
-            color: var(--text-dim);
+            border: 1px solid #444;
+            transition: background 0.2s;
+            user-select: none;
         }
         .footer-btn:hover { 
-            background: rgba(255,255,255,0.12); 
-            color: var(--text-bright);
-            border-color: rgba(255,255,255,0.15);
+            background: #3c3c3c; 
         }
 
-        /* Resizer */
+        /* Resizer between sidebar and workspace */
         #sidebar-resizer {
             width: 4px;
             cursor: col-resize;
             background: transparent;
             transition: background 0.2s;
         }
-        #sidebar-resizer:hover,
-        #sidebar-resizer.dragging {
+        #sidebar-resizer:hover {
             background: var(--accent);
         }
 
-        /* Main Workspace */
+        /* Main Workspace Container */
         #workspace {
             flex-grow: 1;
             display: flex;
@@ -314,55 +303,46 @@
             flex-direction: column; 
             min-width: 0;
             position: relative;
-            background: var(--bg-main);
+            background: var(--bg-editor);
         }
 
-        /* Tabs Bar - VSCode Style */
+        /* Tabs Bar - VS Code style */
         #tabs-bar {
-            height: 35px;
+            height: 36px;
             background: var(--bg-darker);
             display: flex;
             overflow-x: auto;
             border-bottom: 1px solid var(--border-color);
-            padding-left: 4px;
+            flex-shrink: 0;
         }
 
         .tab {
-            min-width: 120px;
+            min-width: 140px;
             max-width: 200px;
-            padding: 0 12px 0 16px;
-            background: var(--bg-darker);
-            border-right: 1px solid var(--border-color);
+            padding: 0 16px;
+            background: var(--tab-inactive-bg);
+            border-right: 1px solid var(--bg-darker);
             display: flex;
             align-items: center;
             justify-content: space-between;
             font-size: 12px;
             cursor: pointer;
-            color: var(--text-dim);
+            color: #969696;
             flex-shrink: 0;
-            position: relative;
-            transition: background 0.15s;
             height: 100%;
             box-sizing: border-box;
+            border-top: 2px solid transparent;
+            user-select: none;
         }
 
         .tab:hover {
-            background: rgba(255,255,255,0.04);
+            background: #2a2a2a;
         }
 
         .tab.active {
-            background: var(--bg-main);
-            color: var(--text-bright);
+            background: var(--tab-active-bg);
+            color: white;
             border-top: 2px solid var(--accent);
-        }
-        .tab.active::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background: var(--accent);
         }
 
         .tab-close {
@@ -370,12 +350,12 @@
             padding: 2px;
             border-radius: 3px;
             opacity: 0;
-            transition: all 0.15s;
+            transition: opacity 0.2s, background 0.2s;
+            width: 16px;
+            height: 16px;
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 16px;
-            height: 16px;
         }
         .tab:hover .tab-close,
         .tab.active .tab-close {
@@ -383,94 +363,94 @@
         }
         .tab-close:hover { 
             background: rgba(255,255,255,0.1); 
-            opacity: 1 !important;
+            opacity: 1 !important; 
         }
 
-        /* Toolbar - VSCode Style */
         #toolbar { 
-            padding: 8px 16px; 
+            padding: 8px 20px; 
             background: var(--bg-main); 
             display: flex; 
             align-items: center; 
             gap: 10px; 
-            border-bottom: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--border-color); 
             height: 40px;
+            flex-shrink: 0;
             box-sizing: border-box;
         }
 
-        /* Monaco Editor */
+        /* Monaco editor host */
         #code-editor {
             flex: 1;
             min-height: 0;
         }
 
-        /* Image Preview Container */
-        #image-preview-container {
-            flex: 1;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            background: var(--bg-darker);
-            overflow: auto;
-            padding: 20px;
-        }
-        #image-preview {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-            border-radius: 4px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-        }
-        .image-info {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            background: rgba(30, 30, 30, 0.9);
-            padding: 8px 12px;
-            border-radius: 4px;
-            font-size: 11px;
-            color: var(--text-dim);
-            border: 1px solid var(--border-color);
-        }
-
-        /* Fallback textarea */
+        /* Fallback textarea (visible; hidden when Monaco is ready) */
         #code-input { 
             flex-grow: 1;
             background: var(--bg-main); 
             color: #d4d4d4; 
-            font-family: 'Cascadia Code', 'Consolas', 'Monaco', 'Courier New', monospace; 
-            padding: 16px; 
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace; 
+            padding: 20px; 
             border: none; 
             outline: none; 
-            font-size: 13px; 
+            font-size: 14px; 
             resize: none; 
-            line-height: 1.5; 
+            line-height: 1.6; 
             tab-size: 4;
         }
 
-        /* Notification Toast - VSCode Style */
+        /* Image Viewer - NEW: Added for image display */
+        #image-viewer {
+            flex: 1;
+            display: none;
+            background: var(--bg-darker);
+            overflow: auto;
+            padding: 20px;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        #image-display {
+            max-width: 100%;
+            max-height: 100%;
+            border-radius: 4px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        
+        .image-info {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(30, 30, 30, 0.8);
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 11px;
+            color: #aaa;
+            backdrop-filter: blur(10px);
+        }
+
+        /* Notification Toast */
         #toast-container {
             position: absolute;
-            bottom: 320px;
+            bottom: 300px;
             right: 20px;
             z-index: 1000;
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 10px;
         }
 
         .toast {
-            background: var(--bg-sidebar);
-            color: var(--text-bright);
+            background: #252526;
+            color: white;
             padding: 12px 16px;
-            border-left: 4px solid var(--accent);
-            border-radius: 3px;
+            border-left: 3px solid var(--accent);
+            border-radius: 4px;
             font-size: 12px;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.5);
-            animation: slideIn 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            animation: slideIn 0.3s ease-out;
             min-width: 220px;
-            max-width: 320px;
-            border: 1px solid var(--border-color);
+            max-width: 300px;
         }
 
         @keyframes slideIn {
@@ -478,22 +458,22 @@
             to { transform: translateX(0); opacity: 1; }
         }
 
-        /* Resize handle */
+        /* Resize handle between editor and bottom panels */
         #editor-resize-handle {
-            height: 5px;
-            background: transparent;
+            height: 6px;
+            background: var(--border-color);
             cursor: row-resize;
             border-top: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--border-color);
             transition: background 0.2s;
         }
-        #editor-resize-handle:hover,
-        #editor-resize-handle.dragging {
+        #editor-resize-handle:hover {
             background: var(--accent);
         }
 
-        /* Bottom Panels - VSCode Style */
+        /* Bottom Panels */
         #bottom-panels { 
-            height: 250px; 
+            height: 280px; 
             min-height: 120px;
             max-height: 80vh;
             display: flex; 
@@ -501,34 +481,33 @@
             background: var(--bg-main);
         }
 
-        /* Vertical splitter */
+        /* Vertical splitter between terminal and logs */
         #bottom-splitter {
             width: 5px;
             cursor: col-resize;
             background: transparent;
-            border-left: 1px solid var(--border-color);
-            border-right: 1px solid var(--border-color);
+            border-left: 1px solid #222222;
+            border-right: 1px solid #222222;
             transition: background 0.2s;
         }
-        #bottom-splitter:hover,
-        #bottom-splitter.dragging {
+        #bottom-splitter:hover {
             background: var(--accent);
         }
 
         .panel-header {
             background: var(--bg-main);
-            padding: 6px 16px;
+            padding: 8px 20px;
             font-size: 11px;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
             border-bottom: 1px solid var(--border-color);
-            color: var(--text-dim);
+            color: #aaaaaa;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            height: 32px;
-            box-sizing: border-box;
             font-weight: 600;
+            letter-spacing: 0.5px;
+            height: 36px;
+            box-sizing: border-box;
         }
 
         #terminal-area {
@@ -542,12 +521,22 @@
             flex: 1; 
             background: var(--bg-darker); 
             color: #cccccc; 
-            padding: 12px 16px; 
+            padding: 15px; 
             overflow-y: auto; 
-            font-family: 'Cascadia Code', 'Consolas', monospace; 
-            font-size: 12px; 
-            white-space: pre-wrap;
+            font-family: 'Cascadia Code', 'Consolas', 'Monaco', monospace; 
+            font-size: 13px; 
+            white-space: pre-wrap; 
             line-height: 1.5;
+        }
+        #output::-webkit-scrollbar {
+            width: 12px;
+        }
+        #output::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        #output::-webkit-scrollbar-thumb {
+            background: var(--scrollbar);
+            border-radius: 6px;
         }
 
         #logs-area {
@@ -559,24 +548,23 @@
         #debug-log { 
             flex: 1; 
             background: var(--bg-darker); 
-            color: var(--text-dim); 
-            padding: 12px; 
-            font-size: 11px; 
+            color: #858585; 
+            padding: 15px; 
+            font-size: 12px; 
             font-family: 'Cascadia Code', monospace; 
-            overflow-y: auto;
-            line-height: 1.4;
+            overflow-y: auto; 
         }
 
         .log-entry { 
             margin-bottom: 4px; 
             padding-bottom: 4px; 
-            border-bottom: 1px solid rgba(255,255,255,0.05);
+            border-bottom: 1px solid #2a2a2a; 
         }
         .log-error { color: var(--error); }
         .log-success { color: var(--success); }
         .log-warning { color: var(--warning); }
 
-        /* Modal */
+        /* Modal for Import Options */
         #import-modal {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -592,15 +580,15 @@
             padding: 24px;
             border-radius: 6px;
             border: 1px solid var(--border-color);
-            width: 400px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+            width: 380px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.5);
         }
         .modal-title { 
             font-weight: 600; 
             margin-bottom: 16px; 
             display: block; 
             font-size: 14px;
-            color: var(--text-bright);
+            color: white;
         }
         .modal-btns { 
             display: flex; 
@@ -609,103 +597,78 @@
             margin-top: 24px; 
         }
 
-        /* Buttons & Inputs - VSCode Style */
+        /* Buttons & Inputs - VS Code style */
         button { 
             cursor: pointer; 
             background: var(--accent); 
             color: white; 
             border: none; 
             padding: 6px 14px; 
-            border-radius: 3px; 
+            border-radius: 4px; 
             font-size: 12px; 
-            font-family: 'Segoe UI', sans-serif;
             font-weight: 500;
-            transition: all 0.15s cubic-bezier(0.4, 0.0, 0.2, 1);
+            transition: background 0.2s, transform 0.1s;
+            height: 28px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
         button:hover { 
             background: var(--accent-hover); 
-            box-shadow: 0 2px 8px rgba(0, 122, 204, 0.3);
         }
-        button:active { transform: translateY(1px); }
-        
+        button:active {
+            transform: scale(0.98);
+        }
         button.run { 
-            background: var(--success); 
-            padding: 6px 16px;
+            background: #2ea043; 
+            font-weight: 600;
         }
         button.run:hover { 
-            background: #5dbb7a; 
-            box-shadow: 0 2px 8px rgba(115, 201, 145, 0.3);
-        }
-        
-        button.secondary {
-            background: rgba(255,255,255,0.08);
-            color: var(--text-main);
-        }
-        button.secondary:hover {
-            background: rgba(255,255,255,0.12);
-            box-shadow: none;
+            background: #3fb950; 
         }
         
         .new-input-group { 
-            padding: 10px 12px; 
+            padding: 12px 16px; 
             display: none; 
             background: var(--bg-darker);
             border-bottom: 1px solid var(--border-color);
+            gap: 8px;
+            align-items: center;
         }
         .new-input-group.active { 
             display: flex; 
-            gap: 6px;
-            align-items: center;
         }
         
         input[type="text"] { 
-            background: rgba(255,255,255,0.08); 
-            border: 1px solid rgba(255,255,255,0.15); 
-            color: var(--text-bright); 
+            background: #3c3c3c; 
+            border: 1px solid #555; 
+            color: white; 
             padding: 6px 10px; 
             font-size: 12px;
             outline: none; 
             flex-grow: 1;
-            border-radius: 3px;
-            font-family: 'Segoe UI', sans-serif;
-            transition: all 0.15s;
+            border-radius: 4px;
+            font-family: inherit;
         }
-        input[type="text"]:focus { 
+        input[type="text"]:focus {
             border-color: var(--accent);
-            box-shadow: 0 0 0 1px var(--accent);
+            box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.3);
         }
 
-        /* Status Bar - VSCode Style */
         #status-bar {
-            height: 22px;
-            background: var(--bg-sidebar);
+            height: 24px;
+            background: var(--accent);
             display: flex;
             align-items: center;
             padding: 0 12px;
             font-size: 11px;
-            color: var(--text-dim);
+            color: white;
             justify-content: space-between;
-            border-top: 1px solid var(--border-color);
-            font-family: 'Segoe UI', sans-serif;
-        }
-        #status-left, #status-right {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-        .status-item {
-            padding: 0 6px;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            cursor: pointer;
-            transition: background 0.15s;
-        }
-        .status-item:hover {
-            background: rgba(255,255,255,0.06);
+            font-weight: 500;
+            flex-shrink: 0;
         }
 
-        /* --- VIRTUAL DESKTOP GUI STYLES --- */
+        /* --- VIRTUAL DESKTOP GUI (VDG) STYLES --- */
         #vdg-container {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -737,16 +700,13 @@
             cursor: pointer;
             padding: 10px 5px;
             border-radius: 6px;
-            transition: all 0.2s;
+            transition: background 0.2s, transform 0.1s;
         }
         .desktop-icon:hover { 
-            background: rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.1); 
             transform: translateY(-2px);
         }
-        .desktop-icon span:first-child { 
-            font-size: 32px; 
-            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
-        }
+        .desktop-icon span:first-child { font-size: 32px; }
         .desktop-icon span:last-child { 
             font-size: 11px; 
             color: white; 
@@ -757,11 +717,11 @@
 
         #vdg-taskbar {
             height: 40px;
-            background: rgba(30, 30, 46, 0.95);
-            backdrop-filter: blur(12px);
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(10px);
             display: flex;
             align-items: center;
-            padding: 0 16px;
+            padding: 0 10px;
             gap: 10px;
             border-top: 1px solid rgba(255,255,255,0.1);
             z-index: 9999;
@@ -774,12 +734,10 @@
             font-size: 12px;
             color: #eee;
             cursor: pointer;
-            transition: all 0.2s;
-            font-family: 'Segoe UI', sans-serif;
+            transition: background 0.2s;
         }
         .taskbar-btn:hover {
             background: rgba(255,255,255,0.15);
-            transform: translateY(-1px);
         }
 
         /* Virtual Desktop Windows */
@@ -787,23 +745,19 @@
             position: absolute;
             min-width: 300px;
             min-height: 200px;
-            background: var(--bg-main);
+            background: #1e1e1e;
             color: #ccc;
             border-radius: 8px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            border: 1px solid var(--border-color);
-            transition: box-shadow 0.3s;
-        }
-        .vd-window:hover {
-            box-shadow: 0 15px 50px rgba(0,0,0,0.6);
+            border: 1px solid #444;
         }
 
         .win-header {
             height: 35px;
-            background: var(--bg-sidebar);
+            background: #333333;
             display: flex;
             align-items: center;
             padding: 0 12px;
@@ -811,9 +765,8 @@
             cursor: move;
             font-size: 13px;
             font-weight: 600;
-            border-bottom: 1px solid var(--border-color);
+            border-bottom: 1px solid #444;
             user-select: none;
-            font-family: 'Segoe UI', sans-serif;
         }
 
         .win-controls { display: flex; gap: 8px; }
@@ -824,7 +777,9 @@
             cursor: pointer; 
             transition: transform 0.2s;
         }
-        .win-btn:hover { transform: scale(1.1); }
+        .win-btn:hover {
+            transform: scale(1.1);
+        }
         .win-close { background: #ff5f56; }
         .win-close:hover { background: #ff0000; }
         .win-min { background: #ffbd2e; }
@@ -851,26 +806,10 @@
             height: 15px;
             cursor: nwse-resize;
             background: linear-gradient(135deg, transparent 50%, #666 50%);
-            opacity: 0;
-            transition: opacity 0.2s;
-        }
-        .vd-window:hover .win-resize {
-            opacity: 0.5;
         }
         .win-resize:hover {
-            opacity: 1 !important;
             background: linear-gradient(135deg, transparent 50%, #888 50%);
         }
-
-        /* File type icons */
-        .file-icon-python:before { content: '🐍'; }
-        .file-icon-image:before { content: '🖼️'; }
-        .file-icon-json:before { content: '📋'; }
-        .file-icon-text:before { content: '📄'; }
-        .file-icon-folder:before { content: '📁'; }
-        .file-icon-html:before { content: '🌐'; }
-        .file-icon-css:before { content: '🎨'; }
-        .file-icon-js:before { content: '📜'; }
     </style>
 
     <script>
@@ -879,19 +818,18 @@
             if (!log) return;
             const entry = document.createElement('div');
             entry.className = 'log-entry' + (type !== 'info' ? ' log-' + type : '');
-            const timestamp = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
-            entry.innerHTML = `<span style="opacity:0.5;">[${timestamp}]</span> ${msg}`;
+            entry.innerText = `[${new Date().toLocaleTimeString()}] ${msg}`;
             log.appendChild(entry);
             log.scrollTop = log.scrollHeight;
         }
 
-        // Newest PyScript
+        // Newest PyScript (includes Pyodide)
         const PYSCRIPT_VERSION = "2026.1.1";
         const cssUrl = `https://pyscript.net/releases/${PYSCRIPT_VERSION}/core.css`;
         const jsUrl = `https://pyscript.net/releases/${PYSCRIPT_VERSION}/core.js`;
 
         function loadAssets() {
-            logDebug("Initializing core components...", 'info');
+            logDebug("Initializing core components...");
             const link = document.createElement('link');
             link.rel = 'stylesheet'; 
             link.href = cssUrl;
@@ -911,149 +849,71 @@
         let editor = null;
 
         function initMonaco(initialCode) {
-            require.config({ 
-                paths: { 
-                    'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' 
-                } 
-            });
-            
+            require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' } });
             require(['vs/editor/editor.main'], function (monaco) {
-                // Define VSCode Dark+ theme
-                monaco.editor.defineTheme('vscode-dark-plus', {
-                    base: 'vs-dark',
-                    inherit: true,
-                    rules: [
-                        { token: '', foreground: 'D4D4D4', background: '1E1E1E' },
-                        { token: 'comment', foreground: '608B4E' },
-                        { token: 'keyword', foreground: 'C586C0' },
-                        { token: 'string', foreground: 'CE9178' },
-                        { token: 'number', foreground: 'B5CEA8' },
-                        { token: 'type', foreground: '4EC9B0' },
-                        { token: 'function', foreground: 'DCDCAA' },
-                        { token: 'variable', foreground: '9CDCFE' },
-                    ],
-                    colors: {
-                        'editor.background': '#1E1E1E',
-                        'editor.foreground': '#D4D4D4',
-                        'editor.lineHighlightBackground': '#2D2D30',
-                        'editorCursor.foreground': '#AEAFAD',
-                        'editor.selectionBackground': '#264F78',
-                        'editor.inactiveSelectionBackground': '#3A3D41',
-                        'editorIndentGuide.background': '#404040',
-                        'editorIndentGuide.activeBackground': '#707070',
-                        'editor.lineNumber.foreground': '#858585',
-                        'editor.lineNumber.activeForeground': '#C6C6C6',
-                    }
-                });
-
                 editor = monaco.editor.create(document.getElementById('code-editor'), {
                     value: initialCode || '',
                     language: 'python',
-                    theme: 'vscode-dark-plus',
+                    theme: 'vs-dark',
                     automaticLayout: true,
-                    minimap: { 
-                        enabled: true,
-                        size: 'proportional',
-                        showSlider: 'always'
-                    },
+                    minimap: { enabled: true },
                     fontSize: 13,
-                    fontFamily: "'Cascadia Code', 'Consolas', 'Monaco', 'Courier New', monospace",
                     lineNumbers: 'on',
                     scrollBeyondLastLine: false,
                     wordWrap: 'on',
-                    wrappingIndent: 'indent',
                     renderWhitespace: 'selection',
                     quickSuggestions: { other: true, comments: false, strings: false },
                     suggestOnTriggerCharacters: true,
                     tabCompletion: 'on',
+                    inlineSuggest: { enabled: true },
                     autoClosingBrackets: 'always',
                     autoClosingQuotes: 'always',
                     autoSurround: 'languageDefined',
-                    formatOnType: true,
-                    formatOnPaste: true,
-                    suggest: {
-                        showIcons: true,
-                        showStatusBar: true,
-                        preview: true
-                    },
-                    parameterHints: {
-                        enabled: true,
-                        cycle: true
-                    },
-                    hover: {
-                        enabled: true,
-                        delay: 300,
-                        sticky: true
-                    }
+                    insertSpaces: true,
+                    tabSize: 4,
+                    fontFamily: "'Cascadia Code', 'Consolas', monospace"
                 });
 
                 window.editor = editor;
                 editor.focus();
 
-                // Hide fallback textarea
+                // Hide fallback textarea now that Monaco is ready
                 const textarea = document.getElementById('code-input');
                 if (textarea) {
                     textarea.style.display = 'none';
                 }
 
-                // Python completions
+                // Basic Python snippet completions
                 monaco.languages.registerCompletionItemProvider('python', {
-                    provideCompletionItems: function (model, position) {
-                        const word = model.getWordUntilPosition(position);
-                        const range = {
-                            startLineNumber: position.lineNumber,
-                            endLineNumber: position.lineNumber,
-                            startColumn: word.startColumn,
-                            endColumn: word.endColumn
-                        };
-
+                    provideCompletionItems: function () {
                         const suggestions = [
                             {
                                 label: 'ifmain',
                                 kind: monaco.languages.CompletionItemKind.Snippet,
                                 insertText: 'if __name__ == "__main__":\n\t$0',
                                 insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                                documentation: 'Python entry point guard',
-                                range: range
+                                documentation: 'Python entry point guard'
                             },
                             {
                                 label: 'forin',
                                 kind: monaco.languages.CompletionItemKind.Snippet,
                                 insertText: 'for ${1:item} in ${2:iterable}:\n\t$0',
                                 insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                                documentation: 'for-in loop',
-                                range: range
+                                documentation: 'for-in loop'
                             },
                             {
                                 label: 'def',
                                 kind: monaco.languages.CompletionItemKind.Snippet,
-                                insertText: 'def ${1:name}(${2:args}):\n\t"""${3:docstring}"""\n\t$0',
+                                insertText: 'def ${1:name}(${2:args}):\n\t$0',
                                 insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                                documentation: 'Function definition',
-                                range: range
-                            },
-                            {
-                                label: 'class',
-                                kind: monaco.languages.CompletionItemKind.Snippet,
-                                insertText: 'class ${1:ClassName}:\n\t"""${2:docstring}"""\n\tdef __init__(self${3:, args}):\n\t\t$0',
-                                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                                documentation: 'Class definition',
-                                range: range
-                            },
-                            {
-                                label: 'try',
-                                kind: monaco.languages.CompletionItemKind.Snippet,
-                                insertText: 'try:\n\t${1:pass}\nexcept ${2:Exception} as e:\n\t${3:print(f"Error: {e}")}\nfinally:\n\t${4:pass}',
-                                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                                documentation: 'Try-except-finally block',
-                                range: range
+                                documentation: 'Function definition'
                             }
                         ];
                         return { suggestions: suggestions };
                     }
                 });
 
-                // Hover provider
+                // Simple hover "syntax tips" for some keywords
                 monaco.languages.registerHoverProvider('python', {
                     provideHover: function (model, position) {
                         const wordInfo = model.getWordAtPosition(position);
@@ -1065,22 +925,12 @@
                             'import': 'Import a module: import module_name',
                             'from': 'Import names from a module: from module import name',
                             'for': 'Loop: for item in iterable:',
-                            'while': 'Loop while condition is True: while condition:',
-                            'if': 'Conditional: if condition:',
-                            'elif': 'Else if: elif condition:',
-                            'else': 'Else block: else:',
-                            'try': 'Exception handling: try:',
-                            'except': 'Catch exception: except Exception:',
-                            'finally': 'Always execute: finally:',
-                            'with': 'Context manager: with open() as f:',
-                            'as': 'Alias: import module as alias',
-                            'return': 'Return value from function: return value',
-                            'yield': 'Yield value from generator: yield value',
+                            'while': 'Loop while condition is True: while condition:'
                         };
                         if (tips[word]) {
                             return {
                                 contents: [
-                                    { value: '**' + word + '**' },
+                                    { value: '```python\n' + word + '\n```' },
                                     { value: tips[word] }
                                 ]
                             };
@@ -1101,33 +951,28 @@
 
 <div id="sidebar">
     <div class="sidebar-header">
-        <span id="sidebar-title">EXPLORER</span>
+        <span id="sidebar-title">Explorer</span>
         <div class="sidebar-actions" id="explorer-actions">
-            <span onclick="showNewInput('file')" title="New File">📄</span>
-            <span onclick="showNewInput('folder')" title="New Folder">📁</span>
+            <span onclick="showNewInput('file')" title="New File">📄+</span>
+            <span onclick="showNewInput('folder')" title="New Folder">📁+</span>
         </div>
     </div>
     <div id="new-item-input" class="new-input-group">
         <input type="text" id="new-item-name" placeholder="Name...">
         <button onclick="confirmNewItem()">OK</button>
-        <button onclick="hideNewInput()" class="secondary">Cancel</button>
+        <button onclick="hideNewInput()" style="background:#555">X</button>
     </div>
     
     <!-- File List (Explorer View) -->
     <div id="file-list"></div>
 
     <!-- Desktop Menu (VDG View) - Hidden by default -->
-    <div id="vdg-menu" style="display:none; flex-grow:1; padding:12px;">
-        <div style="font-size:10px; color:#888; margin-bottom:10px; text-transform: uppercase; letter-spacing: 0.5px;">DESKTOP INFO</div>
-        <div style="font-size:11px; padding:12px; background:rgba(255,255,255,0.03); border-radius:4px; line-height:1.6; border:1px solid rgba(255,255,255,0.05);">
-            <strong style="color:var(--text-bright);">Virtual Desktop Engine</strong><br>
-            <span style="color:var(--text-dim);">Python scripts can create windows using:</span><br>
-            <code style="background:rgba(0,0,0,0.3); padding:6px; display:block; margin-top:6px; border-radius:3px; border-left:3px solid var(--accent);">
-                import js<br>
-                from js import document<br>
-                js_bridge = js.window.js_bridge<br>
-                js_bridge.create_window("Test", 400, 300)
-            </code>
+    <div id="vdg-menu" style="display:none; flex-grow:1; padding:10px;">
+        <div style="font-size:12px; color:#888; margin-bottom:10px;">DESKTOP INFO</div>
+        <div style="font-size:11px; padding:10px; background:#2a2a2a; border-radius:4px; line-height:1.6;">
+            <strong>Virtual Desktop Engine</strong><br>
+            Python scripts can create windows using:<br>
+            <code style="background:#1a1a1a; padding:2px 5px; display:block; margin-top:5px;">import js<br>from js import document<br>js_bridge = js.window.js_bridge<br>js_bridge.create_window("Test", 400, 300)</code>
         </div>
     </div>
 
@@ -1136,9 +981,9 @@
         <div class="pkg-header">Pyodide Packages</div>
         <input type="text" id="pkg-search" placeholder="Search packages..." oninput="onPackageSearchInput(event)">
         <div id="pkg-results"></div>
-        <div style="display:flex; gap:6px; margin-top:8px;">
-            <input type="text" id="pkg-name-input" placeholder="Install by name..." style="flex:1;">
-            <button style="font-size:11px; padding:6px 10px;" onclick="manualInstallPackage()">Install</button>
+        <div style="display:flex; gap:4px; margin-top:6px;">
+            <input type="text" id="pkg-name-input" placeholder="Install by name...">
+            <button style="font-size:10px; padding:4px 6px;" onclick="manualInstallPackage()">Install</button>
         </div>
     </div>
     
@@ -1158,24 +1003,20 @@
         <div id="toolbar">
             <button class="run" id="run-btn" onclick="runPythonCode()">▶ Run</button>
             <button onclick="saveCurrentFile()">Save</button>
-            <button onclick="clearOutput()" class="secondary">Clear Console</button>
-            <div style="flex:1;"></div>
-            <span id="status-text" style="font-size: 11px; color: var(--text-dim); margin-right: 8px;">Python 3.x</span>
-            <div style="width:1px; height:16px; background:var(--border-color); margin:0 8px;"></div>
-            <span style="font-size: 11px; color: var(--text-dim);">UTF-8</span>
+            <button onclick="clearOutput()" style="background: transparent; border: 1px solid #555;">Clear Console</button>
+            <span id="status-text" style="margin-left: auto; font-size: 11px; color: #888;">Python 3.x Engine</span>
         </div>
 
         <!-- Monaco editor host -->
         <div id="code-editor"></div>
-        
-        <!-- Image preview container -->
-        <div id="image-preview-container">
-            <img id="image-preview" alt="Image Preview">
-            <div id="image-info" class="image-info"></div>
-        </div>
-        
         <!-- Fallback textarea -->
         <textarea id="code-input" spellcheck="false" placeholder="Select a file to start coding..."></textarea>
+        
+        <!-- NEW: Image viewer for displaying imported images -->
+        <div id="image-viewer">
+            <img id="image-display" alt="Image Preview">
+            <div class="image-info" id="image-info"></div>
+        </div>
         
         <div id="toast-container"></div>
 
@@ -1185,8 +1026,8 @@
         <div id="bottom-panels">
             <div id="terminal-area">
                 <div class="panel-header">
-                    <span>Terminal</span>
-                    <span style="font-size:10px; opacity:0.6;">Try: pip install requests</span>
+                    Terminal
+                    <span style="font-size:9px; opacity:0.6;">Try: pip install requests</span>
                 </div>
                 <div id="output">System: Booting Python environment...</div>
             </div>
@@ -1202,15 +1043,8 @@
         </div>
 
         <div id="status-bar">
-            <div id="status-left">
-                <span class="status-item" title="Python Engine">🐍 Python</span>
-                <span class="status-item" id="file-type-indicator">Plain Text</span>
-            </div>
-            <div id="status-right">
-                <span class="status-item" id="line-col-indicator">Ln 1, Col 1</span>
-                <span class="status-item">Spaces: 4</span>
-                <span class="status-item">UTF-8</span>
-            </div>
+            <div id="status-left">Ready</div>
+            <div id="status-right">UTF-8</div>
         </div>
     </div>
 
@@ -1220,9 +1054,9 @@
             <!-- File icons and windows rendered here -->
         </div>
         <div id="vdg-taskbar">
-            <div class="taskbar-btn" style="background:var(--accent); font-weight:500;">Python OS</div>
-            <div id="taskbar-apps" style="display:flex; gap:6px;"></div>
-            <div style="margin-left:auto; font-size:12px; opacity:0.8; font-family: 'Segoe UI', sans-serif;" id="vdg-clock">12:00 PM</div>
+            <div class="taskbar-btn" style="background:#007acc; font-weight:bold;">Python OS</div>
+            <div id="taskbar-apps" style="display:flex; gap:5px;"></div>
+            <div style="margin-left:auto; font-size:12px; opacity:0.8;" id="vdg-clock">12:00 PM</div>
         </div>
     </div>
 </div>
@@ -1231,44 +1065,31 @@
 <div id="import-modal">
     <div class="modal-content">
         <span class="modal-title">Import Options</span>
-        <p style="font-size: 12px; color: var(--text-dim); margin: 8px 0 16px 0;">How should we handle these files?</p>
-        <div style="display: flex; flex-direction: column; gap: 10px; margin: 16px 0;">
-            <label style="font-size: 12px; display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 6px 0;">
-                <input type="radio" name="import-mode" value="merge" checked> 
-                <div>
-                    <div style="font-weight:500;">Merge with existing</div>
-                    <div style="font-size:11px; opacity:0.7; margin-top:2px;">Keep existing files, add new ones</div>
-                </div>
+        <p style="font-size: 12px; color: #aaa;">How should we handle these files?</p>
+        <div style="display: flex; flex-direction: column; gap: 10px; margin: 15px 0;">
+            <label style="font-size: 12px; display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="radio" name="import-mode" value="merge" checked> Merge with existing
             </label>
-            <label style="font-size: 12px; display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 6px 0;">
-                <input type="radio" name="import-mode" value="overwrite"> 
-                <div>
-                    <div style="font-weight:500;">Overwrite entire filesystem</div>
-                    <div style="font-size:11px; opacity:0.7; margin-top:2px;">Replace all files with imported ones</div>
-                </div>
+            <label style="font-size: 12px; display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="radio" name="import-mode" value="overwrite"> Overwrite entire filesystem
             </label>
         </div>
         <div class="modal-btns">
-            <button onclick="closeImportModal()" class="secondary">Cancel</button>
+            <button onclick="closeImportModal()" style="background: #555;">Cancel</button>
             <button onclick="startImportProcess()">Import</button>
         </div>
     </div>
 </div>
 
 <!-- Hidden Inputs -->
-<input type="file" id="file-import-input" style="display:none;" onchange="handleFileImport(event)" multiple>
+<input type="file" id="file-import-input" style="display:none;" onchange="handleFileImport(event)" accept=".py,.txt,.json,.html,.css,.js,.png,.jpg,.jpeg,.gif,.svg">
 <input type="file" id="folder-import-input" style="display:none;" webkitdirectory directory onchange="handleFolderImport(event)">
 <input type="file" id="zip-import-input" style="display:none;" accept=".zip" onchange="handleZipImport(event)">
 
-<!-- PyScript config -->
+<!-- New-style PyScript config JSON so JS can manage packages -->
 <py-config>
 {
-  "packages": ["numpy", "pandas"],
-  "runtimes": [{
-    "src": "https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js",
-    "name": "pyodide-0.23.4",
-    "lang": "python"
-  }]
+  "packages": ["numpy", "pandas"]
 }
 </py-config>
 
@@ -1295,7 +1116,7 @@
         user_val = js.window.prompt(prompt_text) or ""
         print(user_val) 
         
-        # Allow "pip install <pkg>" from input
+        # Allow "pip install <pkg>" from input, delegate to JS installPackage
         if user_val.strip().lower().startswith("pip install "):
             parts = user_val.strip().split()
             if len(parts) >= 3:
@@ -1320,6 +1141,13 @@
     def enable_pygame_vdg(window_title="Pygame Window"):
         """
         Provide a minimal pygame-like module that renders into the Virtual Desktop
+        via js_bridge. If real pygame somehow exists, we just patch its display
+        methods; otherwise we create a stub pygame module so that:
+        
+            import pygame
+            screen = pygame.display.set_mode((400, 300))
+        
+        works and opens a VDG window.
         """
         from js import window as _window
 
@@ -1363,11 +1191,13 @@
             return surface
 
         def _flip():
+            # No buffering; drawing is immediate
             return None
 
         pygame.display.set_mode = _set_mode
         pygame.display.flip = _flip
 
+        # Basic drawing support
         def _draw_rect(surface, color, rect, width=0):
             try:
                 x, y, w, h = rect
@@ -1391,32 +1221,19 @@
         for filename, content in py_files.items():
             if filename.startswith('FOLDER_') or filename == 'loglevel:webpack-dev-server' or filename == 'pyscript-styles': 
                 continue
-            
-            # Handle image files (Base64 encoded)
-            if filename.toLowerCase().match(/\.(png|jpg|jpeg|gif|bmp|webp|svg)$/):
-                try:
-                    import base64
-                    # Remove data URL prefix if present
-                    if content.startswith('data:'):
-                        content = content.split(',')[1]
-                    # Decode and write as binary
+            try:
+                # Skip image files (they're stored as data URLs, not regular files)
+                if filename.includes('IMAGE_') or filename.includes('data:image'):
+                    continue
+                    
+                # Ensure path exists for nested files
+                if "/" in filename:
                     import os
                     os.makedirs(os.path.dirname(filename), exist_ok=True)
-                    with open(filename, "wb") as f:
-                        f.write(base64.b64decode(content))
-                    js.logDebug(f"Loaded image: {filename}", "success")
-                except Exception as e:
-                    js.logDebug(f"Error loading image {filename}: {str(e)}", "error")
-            else:
-                # Regular text files
-                try:
-                    if "/" in filename:
-                        import os
-                        os.makedirs(os.path.dirname(filename), exist_ok=True)
-                    with open(filename, "w") as f:
-                        f.write(content)
-                except Exception as e:
-                    js.logDebug(f"Error syncing {filename}: {str(e)}", "error")
+                with open(filename, "w") as f:
+                    f.write(content)
+            except Exception as e:
+                js.logDebug(f"Error syncing {filename}: {str(e)}", "error")
         
         # Always set up pygame stub/hook before user code runs
         try:
@@ -1448,9 +1265,17 @@
         "beautifulsoup4","lxml","pytest","bokeh","xarray","seaborn"
     ];
 
-    // Image file extensions
-    const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.svg', '.ico', '.tiff'];
-    const TEXT_EXTENSIONS = ['.py', '.txt', '.js', '.html', '.css', '.json', '.md', '.xml', '.csv'];
+    // NEW: Image file extensions and MIME types
+    const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'bmp', 'webp'];
+    const IMAGE_MIME_TYPES = {
+        'png': 'image/png',
+        'jpg': 'image/jpeg',
+        'jpeg': 'image/jpeg',
+        'gif': 'image/gif',
+        'svg': 'image/svg+xml',
+        'bmp': 'image/bmp',
+        'webp': 'image/webp'
+    };
 
     /**
      * WINDOW MANAGER - Virtual desktop windows for Python scripts
@@ -1528,7 +1353,7 @@
             const win = this.windows[id];
             if (!win) return;
             win.ctx.fillStyle = color;
-            win.ctx.font = font || "14px 'Segoe UI', sans-serif";
+            win.ctx.font = font || "14px sans-serif";
             win.ctx.fillText(text, x, y);
         },
 
@@ -1609,7 +1434,7 @@
                 
                 // Resize canvas
                 canvas.width = newWidth;
-                canvas.height = newHeight - 35;
+                canvas.height = newHeight - 35; // Subtract header height
                 
                 // Restore content (scaled)
                 ctx.putImageData(imageData, 0, 0);
@@ -1633,6 +1458,7 @@
     window.js_bridge = {
         create_window: function(title, width, height) {
             const winId = WindowManager.create(title, width, height);
+            // Return an object with methods that Python can call
             return {
                 id: winId,
                 fill_rect: function(x, y, w, h, color) {
@@ -1669,7 +1495,7 @@ def main():
     
     # Draw something
     win.fill_rect(50, 50, 100, 100, "red")
-    win.draw_text(60, 80, "Hello from Python!", "white", "20px 'Segoe UI'")
+    win.draw_text(60, 80, "Hello from Python!", "white", "20px Arial")
     
     # Create another window
     win2 = js_bridge.create_window("Animation", 300, 200)
@@ -1679,7 +1505,7 @@ def main():
     for i in range(10):
         win2.clear()
         win2.fill_rect(10 + (i * 20), 50, 40, 40, "cyan")
-        win2.draw_text(10, 20, f"Frame {i+1}", "white", "16px 'Segoe UI'")
+        win2.draw_text(10, 20, f"Frame {i+1}", "white", "16px Arial")
         time.sleep(0.3)
     
     print("Animation complete!")
@@ -1687,30 +1513,15 @@ def main():
 main()`);
     }
 
-    // Helper function to get file icon
-    function getFileIcon(filename) {
-        const ext = filename.toLowerCase();
-        if (ext.endsWith('.py')) return '🐍';
-        if (IMAGE_EXTENSIONS.some(e => ext.endsWith(e))) return '🖼️';
-        if (ext.endsWith('.json')) return '📋';
-        if (ext.endsWith('.html') || ext.endsWith('.htm')) return '🌐';
-        if (ext.endsWith('.css')) return '🎨';
-        if (ext.endsWith('.js')) return '📜';
-        return '📄';
-    }
-
     function showToast(filename, action = "Saved") {
         const container = document.getElementById('toast-container');
         const toast = document.createElement('div');
         toast.className = 'toast';
-        const now = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        const now = new Date().toLocaleTimeString();
         toast.innerHTML = `
-            <div style="font-weight:500; margin-bottom:4px; display:flex; align-items:center; gap:6px;">
-                ${getFileIcon(filename)}
-                <span>File ${action}</span>
-            </div>
+            <div style="font-weight:bold; margin-bottom:4px;">File ${action}</div>
             <div style="opacity:0.8; font-size:11px;">${filename}</div>
-            <div style="font-size:10px; margin-top:6px; opacity:0.6;">${now}</div>
+            <div style="font-size:10px; margin-top:5px; opacity:0.6;">${now}</div>
         `;
         container.appendChild(toast);
         setTimeout(() => {
@@ -1732,12 +1543,17 @@ main()`);
                 switchFile(filename);
             };
             
-            const icon = getFileIcon(filename);
+            // NEW: Different icons for different file types
+            let icon = '📄';
+            if (filename.endsWith('.py')) icon = '🐍';
+            else if (isImageFile(filename)) icon = '🖼️';
+            else if (filename.endsWith('.json')) icon = '{}';
+            else if (filename.endsWith('.html')) icon = '🌐';
+            else if (filename.endsWith('.css')) icon = '🎨';
+            else if (filename.endsWith('.js')) icon = '📜';
+            
             tab.innerHTML = `
-                <span title="${filename}" style="display:flex; align-items:center; gap:6px;">
-                    ${icon}
-                    <span style="overflow:hidden; text-overflow:ellipsis;">${filename}</span>
-                </span>
+                <span title="${filename}">${icon} ${filename}</span>
                 <span class="tab-close" onclick="closeTab('${filename}')">×</span>
             `;
             bar.appendChild(tab);
@@ -1768,21 +1584,104 @@ main()`);
         keys.filter(k => !k.startsWith('FOLDER_') && k !== 'loglevel:webpack-dev-server' && k !== 'pyscript-styles').forEach(key => {
             const div = document.createElement('div');
             div.className = `file-item ${key === currentFile ? 'active' : ''}`;
-            const icon = getFileIcon(key);
+            
+            // NEW: Detect file type for icons and data attributes
+            let icon = '📄';
+            let fileType = 'text/plain';
+            
+            if (key.endsWith('.py')) {
+                icon = '🐍';
+                fileType = 'text/python';
+            } else if (isImageFile(key)) {
+                icon = '🖼️';
+                // Get stored MIME type if available
+                const content = localStorage.getItem(key);
+                if (content && content.startsWith('data:image')) {
+                    fileType = content.substring(5, content.indexOf(';'));
+                } else {
+                    fileType = getImageMimeType(key);
+                }
+            }
+            
+            // Set data attribute for CSS styling
+            div.setAttribute('data-type', fileType);
+            
             div.innerHTML = `
-                <div class="item-label" onclick="openFile('${key}')">
-                    ${icon}
-                    <span style="flex:1; overflow:hidden; text-overflow:ellipsis;">${key}</span>
-                </div>
+                <div class="item-label" onclick="openFile('${key}')">${icon} ${key}</div>
                 <div class="item-actions">
-                    <span class="action-icon" onclick="renameItem('${key}')" title="Rename">✏️</span>
-                    <span class="action-icon" onclick="deleteItem('${key}')" title="Delete">🗑️</span>
+                    <span class="action-icon" onclick="renameItem('${key}')">✏️</span>
+                    <span class="action-icon" onclick="deleteItem('${key}')">🗑️</span>
                 </div>
             `;
             list.appendChild(div);
         });
 
+        // Mirror to Desktop icons if VDG is active
         updateDesktopIcons();
+    }
+
+    // NEW: Helper function to check if a file is an image
+    function isImageFile(filename) {
+        const ext = filename.split('.').pop().toLowerCase();
+        return IMAGE_EXTENSIONS.includes(ext);
+    }
+
+    // NEW: Get MIME type from filename
+    function getImageMimeType(filename) {
+        const ext = filename.split('.').pop().toLowerCase();
+        return IMAGE_MIME_TYPES[ext] || 'image/*';
+    }
+
+    // NEW: Read file as data URL for images
+    function readFileAsDataURL(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    }
+
+    // NEW: Display image in the image viewer
+    function displayImage(filename) {
+        const content = localStorage.getItem(filename);
+        if (!content) return;
+        
+        const editor = document.getElementById('code-editor');
+        const textarea = document.getElementById('code-input');
+        const imageViewer = document.getElementById('image-viewer');
+        const imageDisplay = document.getElementById('image-display');
+        const imageInfo = document.getElementById('image-info');
+        
+        // Hide editor, show image viewer
+        if (editor) editor.style.display = 'none';
+        if (textarea) textarea.style.display = 'none';
+        imageViewer.style.display = 'flex';
+        
+        // Set image source
+        imageDisplay.src = content;
+        
+        // Extract and display image info
+        const size = formatBytes(content.length);
+        const dimensions = 'Click to view full size';
+        imageInfo.textContent = `${filename} • ${size}`;
+        
+        // Make image clickable to view full size
+        imageDisplay.onclick = () => {
+            const win = window.open('', '_blank');
+            win.document.write(`<html><head><title>${filename}</title></head><body style="margin:0;background:#1e1e1e;display:flex;align-items:center;justify-content:center;height:100vh;"><img src="${content}" style="max-width:100%;max-height:100%;" /></body></html>`);
+        };
+        
+        logDebug(`Displaying image: ${filename}`, 'info');
+    }
+
+    // NEW: Helper to format file size
+    function formatBytes(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
     function openFile(filename) {
@@ -1790,6 +1689,7 @@ main()`);
             openTabs.push(filename);
         }
         switchFile(filename);
+        // If we were in VDG mode, go back to editor
         if (activeMode === 'vdg') {
             const editorIcon = document.querySelector('.activity-icon[title="File Explorer"]');
             switchMode('editor', editorIcon);
@@ -1801,47 +1701,23 @@ main()`);
         currentFile = filename;
         const content = localStorage.getItem(filename) || "";
         
-        // Check if file is an image
-        const isImage = IMAGE_EXTENSIONS.some(ext => filename.toLowerCase().endsWith(ext));
-        const isText = TEXT_EXTENSIONS.some(ext => filename.toLowerCase().endsWith(ext));
-        
-        // Update status bar
-        document.getElementById('file-type-indicator').textContent = 
-            isImage ? 'Image' : isText ? filename.split('.').pop().toUpperCase() : 'Binary';
-        
-        if (isImage) {
-            // Show image preview
-            if (window.editor) window.editor.getDomNode().style.display = 'none';
-            document.getElementById('code-input').style.display = 'none';
-            document.getElementById('image-preview-container').style.display = 'flex';
-            
-            // Set image source
-            const img = document.getElementById('image-preview');
-            const info = document.getElementById('image-info');
-            
-            if (content.startsWith('data:')) {
-                img.src = content;
-            } else {
-                // Assume it's Base64 without data URL prefix
-                img.src = 'data:image/png;base64,' + content;
-            }
-            
-            // Update image info
-            img.onload = function() {
-                info.textContent = `${filename} - ${img.naturalWidth}×${img.naturalHeight}`;
-            };
+        // NEW: Check if file is an image
+        if (isImageFile(filename) && content.startsWith('data:image')) {
+            displayImage(filename);
         } else {
-            // Show code editor
-            document.getElementById('image-preview-container').style.display = 'none';
+            // Show editor, hide image viewer
+            const editor = document.getElementById('code-editor');
+            const textarea = document.getElementById('code-input');
+            const imageViewer = document.getElementById('image-viewer');
             
-            if (window.editor) {
-                window.editor.getDomNode().style.display = 'block';
-                window.editor.setValue(content);
-            } else {
-                const textarea = document.getElementById('code-input');
+            if (editor) {
+                editor.style.display = 'block';
+                editor.setValue(content);
+            } else if (textarea) {
                 textarea.style.display = 'block';
                 textarea.value = content;
             }
+            imageViewer.style.display = 'none';
         }
         
         updateFileList();
@@ -1854,14 +1730,11 @@ main()`);
             if (openTabs.length > 0) switchFile(openTabs[openTabs.length - 1]);
             else {
                 currentFile = "";
-                document.getElementById('image-preview-container').style.display = 'none';
                 if (window.editor) {
-                    window.editor.getDomNode().style.display = 'block';
                     window.editor.setValue("");
                 } else {
                     const textarea = document.getElementById('code-input');
-                    textarea.style.display = 'block';
-                    textarea.value = "";
+                    if (textarea) textarea.value = "";
                 }
             }
         }
@@ -1879,7 +1752,7 @@ main()`);
         }
     }
 
-    /* IMPORT / EXPORT LOGIC with IMAGE SUPPORT */
+    /* IMPORT / EXPORT LOGIC */
 
     function triggerImport(type) {
         currentImportType = type;
@@ -1915,33 +1788,31 @@ main()`);
         logDebug("Import completed successfully.", "success");
     }
 
+    // MODIFIED: Now handles image files as data URLs
     async function processFileArray(files) {
         for (let file of files) {
             const path = file.webkitRelativePath || file.name;
-            const isImage = IMAGE_EXTENSIONS.some(ext => path.toLowerCase().endsWith(ext));
             
-            if (path.includes('/')) {
-                const parts = path.split('/');
-                for(let i=0; i < parts.length - 1; i++) {
-                    const folderPath = parts.slice(0, i+1).join('/');
-                    localStorage.setItem(`FOLDER_${folderPath}`, "dir");
+            // NEW: Check if file is an image
+            if (isImageFile(path)) {
+                try {
+                    // Read image as data URL (Base64)
+                    const dataUrl = await readFileAsDataURL(file);
+                    localStorage.setItem(path, dataUrl);
+                    logDebug(`Imported image: ${path} (${formatBytes(file.size)})`, 'success');
+                } catch (error) {
+                    logDebug(`Failed to import image ${path}: ${error.message}`, 'error');
+                    continue;
                 }
-            }
-            
-            if (isImage) {
-                // Read image as Base64
-                const reader = new FileReader();
-                await new Promise((resolve) => {
-                    reader.onload = function(e) {
-                        localStorage.setItem(path, e.target.result);
-                        resolve();
-                    };
-                    reader.readAsDataURL(file);
-                });
-                logDebug(`Imported image: ${path}`, 'success');
             } else {
-                // Read text file
+                // Regular text file
                 const content = await file.text();
+                if (path.includes('/')) {
+                    const parts = path.split('/');
+                    for(let i=0; i < parts.length - 1; i++) {
+                        localStorage.setItem(`FOLDER_${parts[i]}`, "dir");
+                    }
+                }
                 localStorage.setItem(path, content);
             }
             
@@ -1950,80 +1821,51 @@ main()`);
         }
     }
 
+    // MODIFIED: Now handles images in zip files
     async function processZip(zipFile) {
         const zip = await JSZip.loadAsync(zipFile);
-        const files = Object.keys(zip.files);
-        
-        for (let filename of files) {
+        for (let filename in zip.files) {
             const file = zip.files[filename];
-            if (file.dir) {
-                localStorage.setItem(`FOLDER_${filename.replace(/\/$/, '')}`, "dir");
-                continue;
-            }
-            
-            const isImage = IMAGE_EXTENSIONS.some(ext => filename.toLowerCase().endsWith(ext));
-            
-            if (isImage) {
-                // Handle image in zip
-                const blob = await file.async('blob');
-                const reader = new FileReader();
-                await new Promise((resolve) => {
-                    reader.onload = function(e) {
-                        localStorage.setItem(filename, e.target.result);
-                        resolve();
-                    };
-                    reader.readAsDataURL(blob);
-                });
-                logDebug(`Imported image from zip: ${filename}`, 'success');
-            } else {
-                // Handle text file in zip
-                try {
-                    const content = await file.async('string');
+            if (!file.dir) {
+                // NEW: Check if file is an image
+                if (isImageFile(filename)) {
+                    try {
+                        // Get image as blob, then convert to data URL
+                        const blob = await file.async('blob');
+                        const dataUrl = await new Promise((resolve) => {
+                            const reader = new FileReader();
+                            reader.onload = () => resolve(reader.result);
+                            reader.readAsDataURL(blob);
+                        });
+                        localStorage.setItem(filename, dataUrl);
+                        logDebug(`Imported image from zip: ${filename}`, 'success');
+                    } catch (error) {
+                        logDebug(`Failed to import image ${filename} from zip: ${error.message}`, 'error');
+                    }
+                } else {
+                    // Regular text file
+                    const content = await file.async("string");
                     localStorage.setItem(filename, content);
-                } catch (e) {
-                    // If can't read as string, it might be binary
-                    const blob = await file.async('blob');
-                    const reader = new FileReader();
-                    await new Promise((resolve) => {
-                        reader.onload = function(e) {
-                            localStorage.setItem(filename, e.target.result);
-                            resolve();
-                        };
-                        reader.readAsDataURL(blob);
-                    });
                 }
+                
+                if (!openTabs.includes(filename)) openTabs.push(filename);
+                currentFile = filename;
+            } else {
+                localStorage.setItem(`FOLDER_${filename.replace(/\/$/, '')}`, "dir");
             }
-            
-            if (!openTabs.includes(filename)) openTabs.push(filename);
-            currentFile = filename;
         }
     }
 
     async function exportFilesystem() {
         const zip = new JSZip();
         const keys = Object.keys(localStorage);
-        
-        for (let k of keys) {
+        keys.forEach(k => {
             if (k.startsWith('FOLDER_')) {
                 zip.folder(k.replace('FOLDER_', ''));
             } else if (k !== 'pyscript-styles' && !k.startsWith('loglevel:')) {
-                const content = localStorage.getItem(k);
-                
-                if (IMAGE_EXTENSIONS.some(ext => k.toLowerCase().endsWith(ext))) {
-                    // Handle image export
-                    if (content.startsWith('data:')) {
-                        const base64Data = content.split(',')[1];
-                        zip.file(k, base64Data, {base64: true});
-                    } else {
-                        zip.file(k, content, {base64: true});
-                    }
-                } else {
-                    // Handle text file export
-                    zip.file(k, content);
-                }
+                zip.file(k, localStorage.getItem(k));
             }
-        }
-        
+        });
         const blob = await zip.generateAsync({type:"blob"});
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -2093,7 +1935,6 @@ main()`);
         let name = input.value.trim();
         if (!name) return;
         if (newItemType === 'file') {
-            if (!name.includes('.')) name += '.py';
             localStorage.setItem(name, name.endsWith('.py') ? `# ${name}\n` : "");
             openFile(name);
         } else {
@@ -2103,10 +1944,7 @@ main()`);
         updateFileList();
     }
 
-    function clearOutput() { 
-        document.getElementById('output').innerHTML = ""; 
-        logDebug("Terminal cleared", "info");
-    }
+    function clearOutput() { document.getElementById('output').innerHTML = ""; }
 
     window.appendTerminal = function(text) {
         const output = document.getElementById('output');
@@ -2116,7 +1954,7 @@ main()`);
         output.scrollTop = output.scrollHeight;
     };
 
-    // Package management
+    // New workflow: manage <py-config> as JSON { "packages": [...] }
     window.installPackage = function(pkgName) {
         pkgName = (pkgName || "").trim();
         if (!pkgName) return;
@@ -2144,7 +1982,6 @@ main()`);
         data.packages.push(pkgName);
         config.textContent = JSON.stringify(data, null, 2);
         appendTerminal(`[pip] Successfully added ${pkgName} to PyScript config. Reload the page to load this package.\n`);
-        logDebug(`Package added to config: ${pkgName}`, 'success');
     };
 
     // Package manager UI
@@ -2155,16 +1992,13 @@ main()`);
         const matches = PYODIDE_PACKAGES.filter(name => !q || name.toLowerCase().includes(q));
         resultsEl.innerHTML = "";
         if (!matches.length) {
-            resultsEl.innerHTML = '<div style="opacity:0.6; padding:8px; text-align:center;">No matches in built-in list.</div>';
+            resultsEl.innerHTML = '<div style="opacity:0.6;">No matches in built-in list.</div>';
             return;
         }
         matches.slice(0, 50).forEach(name => {
             const div = document.createElement('div');
             div.className = 'pkg-item';
-            div.innerHTML = `
-                <strong>${name}</strong>
-                <span style="opacity:0.6;">click to install</span>
-            `;
+            div.innerHTML = `<strong>${name}</strong><span>click to install</span>`;
             div.onclick = () => window.installPackage(name);
             resultsEl.appendChild(div);
         });
@@ -2180,21 +2014,16 @@ main()`);
         const name = input.value.trim();
         if (!name) return;
         window.installPackage(name);
-        input.value = '';
     }
 
     async function runPythonCode() {
         const runBtn = document.getElementById('run-btn');
-        if (typeof window.run_user_code_internal !== 'function') {
-            appendTerminal("\n[Error] Python environment not ready yet. Please wait...\n");
-            return;
-        }
+        if (typeof window.run_user_code_internal !== 'function') return;
         saveCurrentFile(false);
         const code = window.editor
             ? window.editor.getValue()
             : document.getElementById('code-input').value;
         runBtn.disabled = true;
-        runBtn.textContent = 'Running...';
         const allFiles = {};
         for(let i=0; i<localStorage.length; i++) {
             const k = localStorage.key(i);
@@ -2205,10 +2034,8 @@ main()`);
                 window.run_user_code_internal(code, allFiles);
             } catch (err) {
                 appendTerminal("\n[Runtime Error] " + err.message);
-                logDebug("Runtime error: " + err.message, 'error');
             } finally {
                 runBtn.disabled = false;
-                runBtn.textContent = '▶ Run';
             }
         }, 50);
     }
@@ -2217,6 +2044,7 @@ main()`);
 
     function switchMode(mode, el) {
         activeMode = mode;
+        // Icons
         document.querySelectorAll('.activity-icon').forEach(i => i.classList.remove('active'));
         el.classList.add('active');
 
@@ -2233,7 +2061,7 @@ main()`);
             fileList.style.display = 'none';
             vdgMenu.style.display = 'block';
             explorerActions.style.display = 'none';
-            sidebarTitle.innerText = "DESKTOP";
+            sidebarTitle.innerText = "Desktop";
             updateDesktopIcons();
         } else {
             editorContainer.style.display = 'flex';
@@ -2241,7 +2069,7 @@ main()`);
             fileList.style.display = 'block';
             vdgMenu.style.display = 'none';
             explorerActions.style.display = 'flex';
-            sidebarTitle.innerText = "EXPLORER";
+            sidebarTitle.innerText = "Explorer";
         }
     }
 
@@ -2249,6 +2077,7 @@ main()`);
         const desktop = document.getElementById('vdg-desktop');
         if (activeMode !== 'vdg') return;
         
+        // Clear only icons, not windows
         const icons = desktop.querySelectorAll('.desktop-icon');
         icons.forEach(icon => icon.remove());
         
@@ -2258,15 +2087,20 @@ main()`);
             if (key === 'pyscript-styles' || key.startsWith('loglevel:')) return;
             
             const isFolder = key.startsWith('FOLDER_');
-            const displayName = key.replace('FOLDER_', '');
-            const iconChar = getFileIcon(displayName);
+            const displayName = isFolder ? key.replace('FOLDER_', '') : key;
+            // NEW: Different icons for images
+            let iconChar = '📄';
+            if (isFolder) {
+                iconChar = '📁';
+            } else if (key.endsWith('.py')) {
+                iconChar = '🐍';
+            } else if (isImageFile(key)) {
+                iconChar = '🖼️';
+            }
 
             const iconDiv = document.createElement('div');
             iconDiv.className = 'desktop-icon';
-            iconDiv.innerHTML = `
-                <span>${iconChar}</span>
-                <span>${displayName}</span>
-            `;
+            iconDiv.innerHTML = `<span>${iconChar}</span><span>${displayName}</span>`;
             iconDiv.ondblclick = () => {
                 if (!isFolder) openFile(key);
             };
@@ -2296,7 +2130,6 @@ main()`);
             startY = e.clientY;
             startHeight = bottomPanels.offsetHeight;
             document.body.style.userSelect = 'none';
-            handle.classList.add('dragging');
         });
 
         window.addEventListener('mousemove', (e) => {
@@ -2314,7 +2147,6 @@ main()`);
             if (!isDragging) return;
             isDragging = false;
             document.body.style.userSelect = '';
-            handle.classList.remove('dragging');
         });
     }
 
@@ -2328,13 +2160,14 @@ main()`);
         let dragging = false;
         let startX = 0;
         let startTermWidth = 0;
+        let startLogsWidth = 0;
 
         splitter.addEventListener('mousedown', (e) => {
             dragging = true;
             startX = e.clientX;
             startTermWidth = term.offsetWidth;
+            startLogsWidth = logs.offsetWidth;
             document.body.style.userSelect = 'none';
-            splitter.classList.add('dragging');
         });
 
         window.addEventListener('mousemove', (e) => {
@@ -2354,7 +2187,6 @@ main()`);
             if (!dragging) return;
             dragging = false;
             document.body.style.userSelect = '';
-            splitter.classList.remove('dragging');
         });
     }
 
@@ -2373,14 +2205,13 @@ main()`);
             startX = e.clientX;
             startWidth = sidebar.offsetWidth;
             document.body.style.userSelect = 'none';
-            resizer.classList.add('dragging');
         });
 
         window.addEventListener('mousemove', (e) => {
             if (!dragging) return;
             const dx = e.clientX - startX;
             let newWidth = startWidth + dx;
-            const minWidth = 180;
+            const minWidth = 150;
             const maxWidth = 500;
             if (newWidth < minWidth) newWidth = minWidth;
             if (newWidth > maxWidth) newWidth = maxWidth;
@@ -2391,18 +2222,7 @@ main()`);
             if (!dragging) return;
             dragging = false;
             document.body.style.userSelect = '';
-            resizer.classList.remove('dragging');
         });
-    }
-
-    // Update line/col indicator in editor
-    function updateLineColIndicator() {
-        if (!window.editor) return;
-        const position = window.editor.getPosition();
-        if (position) {
-            document.getElementById('line-col-indicator').textContent = 
-                `Ln ${position.lineNumber}, Col ${position.column}`;
-        }
     }
 
     window.addEventListener('load', () => {
@@ -2415,12 +2235,6 @@ main()`);
         if (typeof initMonaco === 'function') {
             try {
                 initMonaco(initialCode);
-                // Listen for cursor position changes
-                if (window.editor) {
-                    window.editor.onDidChangeCursorPosition(() => {
-                        updateLineColIndicator();
-                    });
-                }
             } catch (e) {
                 console.error("Failed to init Monaco, falling back to textarea:", e);
                 const textarea = document.getElementById('code-input');
@@ -2440,16 +2254,8 @@ main()`);
         initSidebarResizer();
         renderPackageResults("");
 
-        // Auto-switch to first file
-        setTimeout(() => {
-            if (currentFile) {
-                switchFile(currentFile);
-            }
-        }, 100);
-
         setInterval(() => {
-            if (typeof window.run_user_code_internal === 'function' && 
-                document.getElementById('output').innerHTML.includes("Booting")) {
+            if (typeof window.run_user_code_internal === 'function' && document.getElementById('output').innerHTML.includes("Booting")) {
                 document.getElementById('output').innerHTML = "--- Terminal Ready ---\n";
             }
         }, 1000);
