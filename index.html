@@ -512,7 +512,7 @@
             log.scrollTop = log.scrollHeight;
         }
 
-        const PYSCRIPT_VERSION = "2023.11.1";
+        const PYSCRIPT_VERSION = "2026.1.1";
         const cssUrl = `https://pyscript.net/releases/${PYSCRIPT_VERSION}/core.css`;
         const jsUrl = `https://pyscript.net/releases/${PYSCRIPT_VERSION}/core.js`;
 
@@ -644,7 +644,10 @@
 <input type="file" id="zip-import-input" style="display:none;" accept=".zip" onchange="handleZipImport(event)">
 
 <py-config>
-    packages = ["numpy", "pandas"]
+{
+  "interpreter": "https://cdn.jsdelivr.net/pyodide/v0.29.3/full/pyodide.mjs",
+  "packages": ["numpy", "pandas", "pygame-ce"]
+}
 </py-config>
 
 <script type="py">
@@ -706,6 +709,31 @@
             traceback.print_exc()
 
     js.window.run_user_code_internal = run_user_code_internal
+
+    # Pre-import pygame and route new pygame windows into the virtual desktop
+    try:
+        import pygame as _pygame
+        globals()["pygame"] = _pygame
+
+        def _setup_pygame_virtual_desktop():
+            import pygame as _pg
+            js_bridge = js.window.js_bridge
+            original_set_mode = _pg.display.set_mode
+
+            def set_mode_with_vdg(size, flags=0, depth=0, display=0, vsync=0):
+                width, height = size
+                try:
+                    # Ask JS to create a desktop window backed by a <canvas id="canvas">
+                    js_bridge.create_pygame_window("Pygame Window", int(width), int(height))
+                except Exception as e:
+                    js.logDebug(f"create_pygame_window error: {e}", "error")
+                return original_set_mode(size, flags, depth, display, vsync)
+
+            _pg.display.set_mode = set_mode_with_vdg
+
+        _setup_pygame_virtual_desktop()
+    except Exception as e:
+        js.logDebug(f"pygame setup failed: {e}", "error")
 </script>
 
 <script>
@@ -724,7 +752,7 @@
         windows: {},
         nextId: 1,
 
-        create(title, width, height) {
+        create(title, width, height, canvasId = null) {
             const id = `win_${this.nextId++}`;
             const vdgDesktop = document.getElementById('vdg-desktop');
             
@@ -737,6 +765,8 @@
             win.style.top = (50 + (this.nextId * 20)) + 'px';
             win.style.zIndex = 1000 + this.nextId;
 
+            const canvasIdAttr = canvasId ? `id="${canvasId}"` : "";
+
             win.innerHTML = `
                 <div class="win-header">
                     <span class="win-title">${title}</span>
@@ -747,7 +777,7 @@
                     </div>
                 </div>
                 <div class="win-content">
-                    <canvas class="win-canvas" width="${width}" height="${height}"></canvas>
+                    <canvas class="win-canvas" ${canvasIdAttr} width="${width}" height="${height}"></canvas>
                 </div>
                 <div class="win-resize"></div>
             `;
@@ -914,6 +944,16 @@
                     WindowManager.close(winId);
                 }
             };
+        },
+        // Special helper for pygame-ce: creates a window whose canvas has id="canvas"
+        create_pygame_window: function(title, width, height) {
+            // Remove any existing global <canvas id="canvas"> to avoid duplicates
+            const existing = document.getElementById("canvas");
+            if (existing && existing.parentElement) {
+                existing.parentElement.removeChild(existing);
+            }
+            const winId = WindowManager.create(title, width, height, "canvas");
+            return { id: winId };
         },
         print_to_console: function(msg) {
             appendTerminal(msg + "\n");
@@ -1235,10 +1275,14 @@ main()`);
         appendTerminal(`\n[pip] Collecting ${pkgName}...\n`);
         const config = document.querySelector('py-config');
         try {
-            const currentPackages = JSON.parse(config.textContent).packages;
-            if (!currentPackages.includes(pkgName)) {
-                currentPackages.push(pkgName);
-                config.textContent = JSON.stringify({ packages: currentPackages });
+            const text = (config.textContent || '').trim();
+            const currentConfig = text ? JSON.parse(text) : {};
+            if (!Array.isArray(currentConfig.packages)) {
+                currentConfig.packages = [];
+            }
+            if (!currentConfig.packages.includes(pkgName)) {
+                currentConfig.packages.push(pkgName);
+                config.textContent = JSON.stringify(currentConfig);
                 appendTerminal(`[pip] Successfully installed ${pkgName}. Restarting runtime...\n`);
             } else {
                 appendTerminal(`[pip] Requirement already satisfied: ${pkgName}\n`);
