@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Cloud-less Python IDE</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
+    <style>
+        body { font-family: sans-serif; display: flex; height: 100vh; margin: 0; background: #1e1e1e; color: white; }
+        #sidebar { width: 250px; background: #252526; padding: 15px; border-right: 1px solid #333; }
+        #editor-area { flex-grow: 1; display: flex; flex-direction: column; }
+        textarea { flex-grow: 1; background: #1e1e1e; color: #d4d4d4; font-family: 'Courier New', monospace; padding: 20px; border: none; outline: none; font-size: 16px; }
+        #controls { padding: 10px; background: #333; display: flex; gap: 10px; }
+        #output { height: 200px; background: #000; color: #00ff00; padding: 10px; overflow-y: auto; font-family: monospace; border-top: 2px solid #555; }
+        .file-item { cursor: pointer; padding: 5px; margin: 2px 0; border-radius: 3px; }
+        .file-item:hover { background: #37373d; }
+        button { cursor: pointer; background: #007acc; color: white; border: none; padding: 5px 15px; }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <h3>📁 Files</h3>
+    <div id="file-list"></div>
+    <hr>
+    <input type="text" id="new-filename" placeholder="filename.py" style="width: 80%;">
+    <button onclick="createNewFile()" style="margin-top:5px">+</button>
+</div>
+
+<div id="editor-area">
+    <div id="controls">
+        <span id="current-file-label">main.py</span>
+        <button py-click="save_current_file">Save</button>
+        <button py-click="run_python" style="background: #28a745;">▶ Run</button>
+    </div>
+    <textarea id="code-input"></textarea>
+    <div id="output">System: PyScript loading...</div>
+</div>
+
+<py-config>
+    packages = ["numpy"]
+</py-config>
+
+<script type="py">
+    import js
+    from pyscript import display
+    import os
+
+    # Virtual storage handler
+    class FileManager:
+        def __init__(self):
+            self.current_file = "main.py"
+            self.load_files_into_vfs()
+
+        def load_files_into_vfs(self):
+            # Get all keys from browser localStorage
+            keys = js.Object.keys(js.localStorage)
+            for i in range(keys.length):
+                key = keys[i]
+                if key.endswith(".py"):
+                    content = js.localStorage.getItem(key)
+                    # Write into Pyodide's virtual RAM filesystem
+                    with open(key, "w") as f:
+                        f.write(content)
+            self.refresh_ui()
+
+        def refresh_ui(self):
+            # Tell JS to update the sidebar list
+            js.updateFileList()
+
+    fm = FileManager()
+
+    def save_current_file(event):
+        content = js.document.getElementById("code-input").value
+        filename = fm.current_file
+        # Save to Browser Storage
+        js.localStorage.setItem(filename, content)
+        # Save to Python VFS so it's importable
+        with open(filename, "w") as f:
+            f.write(content)
+        js.console.log(f"Saved {filename}")
+
+    def run_python(event):
+        code = js.document.getElementById("code-input").value
+        js.document.getElementById("output").innerHTML = ""
+        try:
+            # We use exec with a global namespace to allow persistence
+            exec(code, globals())
+        except Exception as e:
+            display(f"Error: {e}", target="output")
+
+    def switch_file(filename):
+        fm.current_file = filename
+        js.document.getElementById("current-file-label").innerText = filename
+        content = js.localStorage.getItem(filename) or ""
+        js.document.getElementById("code-input").value = content
+</script>
+
+<script>
+    // Bridge between UI and Python
+    function updateFileList() {
+        const list = document.getElementById('file-list');
+        list.innerHTML = '';
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key.endsWith('.py')) {
+                const div = document.createElement('div');
+                div.className = 'file-item';
+                div.innerText = key;
+                div.onclick = () => {
+                    const py = pyscript.interpreter;
+                    py.runPython(`switch_file("${key}")`);
+                };
+                list.appendChild(div);
+            }
+        }
+    }
+
+    function createNewFile() {
+        const name = document.getElementById('new-filename').value;
+        if (name && name.endsWith('.py')) {
+            localStorage.setItem(name, '# New file\n');
+            updateFileList();
+            document.getElementById('new-filename').value = '';
+        }
+    }
+    
+    // Initial UI update
+    setTimeout(updateFileList, 2000);
+</script>
+
+</body>
+</html>
