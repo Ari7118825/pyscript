@@ -581,7 +581,7 @@
             log.scrollTop = log.scrollHeight;
         }
 
-        // Newest PyScript (includes Pyodide; currently ships a recent Pyodide, ~0.26.x+)
+        // Newest PyScript (includes Pyodide)
         const PYSCRIPT_VERSION = "2026.1.1";
         const cssUrl = `https://pyscript.net/releases/${PYSCRIPT_VERSION}/core.css`;
         const jsUrl = `https://pyscript.net/releases/${PYSCRIPT_VERSION}/core.js`;
@@ -849,6 +849,7 @@
     import builtins
     from pyodide.http import pyfetch
     import asyncio
+    import types
 
     class WebOutput:
         def write(self, text):
@@ -889,16 +890,34 @@
 
     def enable_pygame_vdg(window_title="Pygame Window"):
         """
-        Minimal pygame integration: route pygame.display.set_mode to a VDG window.
-        Call this from your pygame code after importing pygame, or rely on the
-        automatic call in run_user_code_internal if pygame is already installed.
-        """
-        try:
+        Provide a minimal pygame-like module that renders into the Virtual Desktop
+        via js_bridge. If real pygame somehow exists, we just patch its display
+        methods; otherwise we create a stub pygame module so that:
+        
             import pygame
-        except Exception:
-            return  # pygame not available; do nothing
-
+            screen = pygame.display.set_mode((400, 300))
+        
+        works and opens a VDG window.
+        """
         from js import window as _window
+
+        # Try real pygame first; otherwise create a stub module
+        try:
+            import pygame as _real_pygame  # type: ignore
+            pygame = _real_pygame
+        except Exception:
+            pygame = types.ModuleType("pygame")
+            sys.modules["pygame"] = pygame
+            pygame.display = types.SimpleNamespace()
+            pygame.draw = types.SimpleNamespace()
+            pygame.time = types.SimpleNamespace()
+
+            class Clock:
+                def tick(self, fps=0):
+                    import time as _time
+                    if fps and fps > 0:
+                        _time.sleep(1.0 / float(fps))
+            pygame.time.Clock = Clock
 
         class VDGSurface:
             def __init__(self, js_win, size):
@@ -911,7 +930,10 @@
                 self._js_win.fill_rect(0, 0, w, h, css)
 
         def _set_mode(size, *args, **kwargs):
-            w, h = size
+            try:
+                w, h = size
+            except Exception:
+                return None
             js_win = _window.js_bridge.create_window(window_title, w, h)
             surface = VDGSurface(js_win, (w, h))
             pygame._vdg_window = js_win
@@ -925,24 +947,19 @@
         pygame.display.set_mode = _set_mode
         pygame.display.flip = _flip
 
-        try:
-            import types
-            if not hasattr(pygame, "draw") or pygame.draw is None:
-                pygame.draw = types.SimpleNamespace()
-            def _draw_rect(surface, color, rect, width=0):
-                try:
-                    x, y, w, h = rect
-                except Exception:
-                    return
-                css = _color_to_css(color)
-                js_win = getattr(surface, "_js_win", None) or getattr(pygame, "_vdg_window", None)
-                if js_win is None:
-                    return
-                js_win.fill_rect(x, y, w, h, css)
-            pygame.draw.rect = _draw_rect
-        except Exception:
-            # If anything goes wrong, do not break user code
-            pass
+        # Basic drawing support
+        def _draw_rect(surface, color, rect, width=0):
+            try:
+                x, y, w, h = rect
+            except Exception:
+                return
+            css = _color_to_css(color)
+            js_win = getattr(surface, "_js_win", None) or getattr(pygame, "_vdg_window", None)
+            if js_win is None:
+                return
+            js_win.fill_rect(x, y, w, h, css)
+
+        pygame.draw.rect = _draw_rect
 
     def run_user_code_internal(code, files_data):
         try:
@@ -964,7 +981,7 @@
             except Exception as e:
                 js.logDebug(f"Error syncing {filename}: {str(e)}", "error")
         
-        # Try to enable pygame->VDG integration if pygame is available up-front
+        # Always set up pygame stub/hook before user code runs
         try:
             enable_pygame_vdg()
         except Exception:
@@ -1798,7 +1815,6 @@ main()`);
 
         const initialCode = currentFile ? (localStorage.getItem(currentFile) || "") : "";
         if (typeof initMonaco === 'function') {
-            // Try to use Monaco; if it fails for any reason, the textarea stays visible.
             try {
                 initMonaco(initialCode);
             } catch (e) {
