@@ -121,6 +121,7 @@
 <script type="py">
     import js
     import sys
+    import builtins
     from pyodide.ffi import to_js
 
     # Setup terminal output
@@ -133,15 +134,21 @@
     sys.stdout = WebOutput()
     sys.stderr = WebOutput()
 
+    # Custom input() that works on main thread via JS prompt
+    def custom_input(prompt_text=""):
+        if prompt_text:
+            print(prompt_text, end="")
+        return js.window.prompt(prompt_text) or ""
+
+    # Replace the built-in input globally
+    builtins.input = custom_input
+
     def run_user_code_internal(code, files_data):
-        # Convert JS Proxy object to Python dict to avoid AttributeError: items
         try:
             py_files = files_data.to_py()
         except:
-            # Fallback for different object types
             py_files = dict(files_data)
 
-        # Sync the virtual filesystem
         for filename, content in py_files.items():
             try:
                 with open(filename, "w") as f:
@@ -150,23 +157,20 @@
                 js.console.warn(f"FS Sync error for {filename}: {str(e)}")
         
         try:
-            # Execute with shared globals
             exec(code, globals())
         except Exception as e:
-            # Full traceback to terminal
             import traceback
             traceback.print_exc()
 
-    # Bind the function to the window object so JS can see it
     js.window.run_user_code_internal = run_user_code_internal
-    js.logDebug("Python Core: Loaded on Main Thread", "success")
+    js.logDebug("Python Core: Loaded with Input support", "success")
 </script>
 
 <script>
     let currentFile = "main.py";
 
     if (!localStorage.getItem("main.py")) {
-        localStorage.setItem("main.py", "import numpy as np\n\nprint('Hello from Python!')\nname = 'User'\nprint(f'Welcome, {name}!')\n\na = np.array([1, 2, 3])\nprint(f'Numpy Array: {a}')");
+        localStorage.setItem("main.py", "import numpy as np\n\nprint('Hello from Python!')\n# This will trigger a browser prompt box:\nval = input('Enter a number: ')\n\ntry:\n    num = float(val)\n    print(f'Your number squared is: {num**2}')\nexcept:\n    print(f'You entered text: {val}')\n\na = np.array([1, 2, 3])\nprint(f'Numpy Array: {a}')");
     }
 
     function updateFileList() {
@@ -243,14 +247,17 @@
             if(k && k.endsWith('.py')) allFiles[k] = localStorage.getItem(k);
         }
 
-        try {
-            window.run_user_code_internal(code, allFiles);
-        } catch (err) {
-            logDebug("Execution Exception: " + err.message, "error");
-            appendTerminal("\nSystem Error: " + err.message);
-        } finally {
-            runBtn.disabled = false;
-        }
+        // Slight delay to allow UI to update (Run button text)
+        setTimeout(() => {
+            try {
+                window.run_user_code_internal(code, allFiles);
+            } catch (err) {
+                logDebug("Execution Exception: " + err.message, "error");
+                appendTerminal("\nSystem Error: " + err.message);
+            } finally {
+                runBtn.disabled = false;
+            }
+        }, 50);
     }
 
     window.addEventListener('load', () => {
