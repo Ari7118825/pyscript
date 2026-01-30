@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Python Browser IDE - Multi-File</title>
+    <title>Python Browser IDE - Multi-File & VDG</title>
     
     <!-- JSZip for Zip handling -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -21,6 +21,7 @@
             --accent-hover: #118ad4;
             --error: #f48771;
             --success: #75beff;
+            --vdg-bg: #2c3e50;
         }
 
         body { 
@@ -41,18 +42,21 @@
             flex-direction: column;
             align-items: center;
             padding-top: 10px;
-            gap: 20px;
+            gap: 10px;
             border-right: 1px solid var(--border-color);
+            z-index: 1001;
         }
 
         .activity-icon {
             color: #858585;
-            font-size: 24px;
+            font-size: 20px;
             cursor: pointer;
-            padding: 10px 0;
+            padding: 12px 0;
             width: 100%;
             text-align: center;
+            transition: all 0.2s;
         }
+        .activity-icon:hover { color: #fff; }
         .activity-icon.active {
             color: white;
             border-left: 2px solid white;
@@ -65,6 +69,7 @@
             display: flex; 
             flex-direction: column;
             border-right: 1px solid var(--border-color);
+            transition: width 0.3s;
         }
         
         .sidebar-header {
@@ -141,6 +146,14 @@
         }
         .footer-btn:hover { background: #444; }
 
+        /* Main Workspace Container */
+        #workspace {
+            flex-grow: 1;
+            display: flex;
+            position: relative;
+            min-width: 0;
+        }
+
         /* Editor Area */
         #editor-container { 
             flex-grow: 1; 
@@ -148,6 +161,7 @@
             flex-direction: column; 
             min-width: 0;
             position: relative;
+            background: var(--bg-main);
         }
 
         #tabs-bar {
@@ -351,6 +365,110 @@
             color: white;
             justify-content: space-between;
         }
+
+        /* --- VIRTUAL DESKTOP GUI (VDG) STYLES --- */
+        #vdg-container {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--vdg-bg);
+            background-image: linear-gradient(135deg, #2c3e50 25%, #34495e 100%);
+            display: none;
+            flex-direction: column;
+            z-index: 500;
+        }
+
+        #vdg-desktop {
+            flex-grow: 1;
+            position: relative;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, 80px);
+            grid-template-rows: repeat(auto-fill, 90px);
+            gap: 20px;
+            align-content: start;
+        }
+
+        .desktop-icon {
+            width: 70px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            padding: 10px 5px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        .desktop-icon:hover { background: rgba(255,255,255,0.1); }
+        .desktop-icon span:first-child { font-size: 32px; }
+        .desktop-icon span:last-child { 
+            font-size: 11px; 
+            color: white; 
+            text-shadow: 1px 1px 2px black; 
+            text-align: center;
+            word-break: break-all;
+        }
+
+        #vdg-taskbar {
+            height: 40px;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            gap: 10px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .taskbar-btn {
+            padding: 5px 12px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px;
+            font-size: 12px;
+            color: #eee;
+            cursor: pointer;
+        }
+
+        .vdg-window {
+            position: absolute;
+            min-width: 300px;
+            min-height: 200px;
+            background: #f0f0f0;
+            color: #333;
+            border-radius: 6px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border: 1px solid #999;
+        }
+
+        .win-header {
+            height: 30px;
+            background: #e0e0e0;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            justify-content: space-between;
+            cursor: move;
+            font-size: 12px;
+            font-weight: bold;
+            border-bottom: 1px solid #ccc;
+        }
+
+        .win-controls { display: flex; gap: 5px; }
+        .win-btn { width: 12px; height: 12px; border-radius: 50%; cursor: pointer; }
+        .win-close { background: #ff5f56; }
+        .win-min { background: #ffbd2e; }
+        .win-max { background: #27c93f; }
+
+        .win-content {
+            flex-grow: 1;
+            padding: 10px;
+            background: white;
+            font-size: 13px;
+            overflow: auto;
+        }
     </style>
 
     <script>
@@ -383,13 +501,14 @@
 <body>
 
 <div id="activity-bar">
-    <div class="activity-icon active">📄</div>
+    <div class="activity-icon active" onclick="switchMode('editor', this)" title="File Explorer">📄</div>
+    <div class="activity-icon" onclick="switchMode('vdg', this)" title="Virtual Desktop">🖥️</div>
 </div>
 
 <div id="sidebar">
     <div class="sidebar-header">
-        <span>Explorer</span>
-        <div class="sidebar-actions">
+        <span id="sidebar-title">Explorer</span>
+        <div class="sidebar-actions" id="explorer-actions">
             <span onclick="showNewInput('file')" title="New File">📄+</span>
             <span onclick="showNewInput('folder')" title="New Folder">📁+</span>
         </div>
@@ -399,7 +518,16 @@
         <button onclick="confirmNewItem()">OK</button>
         <button onclick="hideNewInput()" style="background:#555">X</button>
     </div>
+    
+    <!-- File List (Explorer View) -->
     <div id="file-list"></div>
+
+    <!-- Desktop Menu (VDG View) - Hidden by default -->
+    <div id="vdg-menu" style="display:none; flex-grow:1; padding:10px;">
+        <div style="font-size:12px; color:#888; margin-bottom:10px;">DESKTOP APPS</div>
+        <div class="footer-btn" style="margin-bottom:5px; text-align:left;" onclick="createWindow('About', 'Virtual Desktop v1.0<br>Running on Python Browser Engine.')">ℹ️ System Info</div>
+        <div class="footer-btn" style="margin-bottom:5px; text-align:left;" onclick="createWindow('Help', 'Double click files in the explorer to open in editor. Use Desktop for visual management.')">❓ Help</div>
+    </div>
     
     <div class="sidebar-footer">
         <div class="footer-btn" onclick="triggerImport('file')">📥 Import File</div>
@@ -409,37 +537,51 @@
     </div>
 </div>
 
-<div id="editor-container">
-    <div id="tabs-bar"></div>
-    <div id="toolbar">
-        <button class="run" id="run-btn" onclick="runPythonCode()">▶ Run</button>
-        <button onclick="saveCurrentFile()">Save</button>
-        <button onclick="clearOutput()" style="background: transparent; border: 1px solid #555;">Clear Console</button>
-        <span id="status-text" style="margin-left: auto; font-size: 11px; color: #888;">Python 3.x Engine</span>
-    </div>
-    <textarea id="code-input" spellcheck="false" placeholder="Select a file to start coding..."></textarea>
-    
-    <div id="toast-container"></div>
-
-    <div id="bottom-panels">
-        <div id="terminal-area">
-            <div class="panel-header">
-                Terminal
-                <span style="font-size:9px; opacity:0.6;">Try: pip install requests</span>
-            </div>
-            <div id="output">System: Booting Python environment...</div>
+<div id="workspace">
+    <div id="editor-container">
+        <div id="tabs-bar"></div>
+        <div id="toolbar">
+            <button class="run" id="run-btn" onclick="runPythonCode()">▶ Run</button>
+            <button onclick="saveCurrentFile()">Save</button>
+            <button onclick="clearOutput()" style="background: transparent; border: 1px solid #555;">Clear Console</button>
+            <span id="status-text" style="margin-left: auto; font-size: 11px; color: #888;">Python 3.x Engine</span>
         </div>
-        <div style="display: flex; flex-direction: column; flex: 1;">
-            <div class="panel-header">Logs</div>
-            <div id="debug-log">
-                <div class="log-entry">--- Session Started ---</div>
+        <textarea id="code-input" spellcheck="false" placeholder="Select a file to start coding..."></textarea>
+        
+        <div id="toast-container"></div>
+
+        <div id="bottom-panels">
+            <div id="terminal-area">
+                <div class="panel-header">
+                    Terminal
+                    <span style="font-size:9px; opacity:0.6;">Try: pip install requests</span>
+                </div>
+                <div id="output">System: Booting Python environment...</div>
             </div>
+            <div style="display: flex; flex-direction: column; flex: 1;">
+                <div class="panel-header">Logs</div>
+                <div id="debug-log">
+                    <div class="log-entry">--- Session Started ---</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="status-bar">
+            <div id="status-left">Ready</div>
+            <div id="status-right">UTF-8</div>
         </div>
     </div>
 
-    <div id="status-bar">
-        <div id="status-left">Ready</div>
-        <div id="status-right">UTF-8</div>
+    <!-- VIRTUAL DESKTOP GUI LAYER -->
+    <div id="vdg-container">
+        <div id="vdg-desktop">
+            <!-- Icons rendered dynamically -->
+        </div>
+        <div id="vdg-taskbar">
+            <div class="taskbar-btn" style="background:#007acc; font-weight:bold;">Start</div>
+            <div id="taskbar-apps" style="display:flex; gap:5px;"></div>
+            <div style="margin-left:auto; font-size:12px; opacity:0.8;" id="vdg-clock">12:00 PM</div>
+        </div>
     </div>
 </div>
 
@@ -539,6 +681,7 @@
     let newItemType = 'file';
     let pendingImportFiles = null;
     let currentImportType = null;
+    let activeMode = 'editor';
 
     // Default File Setup
     if (!localStorage.getItem("main.py")) {
@@ -618,6 +761,9 @@
             `;
             list.appendChild(div);
         });
+
+        // Mirror to Desktop icons if VDG is active
+        updateDesktopIcons();
     }
 
     function openFile(filename) {
@@ -625,6 +771,11 @@
             openTabs.push(filename);
         }
         switchFile(filename);
+        // If we were in VDG mode, maybe we want to go back to editor
+        if (activeMode === 'vdg') {
+            const editorIcon = document.querySelector('.activity-icon[title="File Explorer"]');
+            switchMode('editor', editorIcon);
+        }
     }
 
     function switchFile(filename) {
@@ -854,10 +1005,118 @@
         }, 50);
     }
 
+    // --- VDG LOGIC ---
+
+    function switchMode(mode, el) {
+        activeMode = mode;
+        // Icons
+        document.querySelectorAll('.activity-icon').forEach(i => i.classList.remove('active'));
+        el.classList.add('active');
+
+        const editor = document.getElementById('editor-container');
+        const vdg = document.getElementById('vdg-container');
+        const fileList = document.getElementById('file-list');
+        const vdgMenu = document.getElementById('vdg-menu');
+        const explorerActions = document.getElementById('explorer-actions');
+        const sidebarTitle = document.getElementById('sidebar-title');
+
+        if (mode === 'vdg') {
+            editor.style.display = 'none';
+            vdg.style.display = 'flex';
+            fileList.style.display = 'none';
+            vdgMenu.style.display = 'block';
+            explorerActions.style.display = 'none';
+            sidebarTitle.innerText = "Desktop";
+            updateDesktopIcons();
+        } else {
+            editor.style.display = 'flex';
+            vdg.style.display = 'none';
+            fileList.style.display = 'block';
+            vdgMenu.style.display = 'none';
+            explorerActions.style.display = 'flex';
+            sidebarTitle.innerText = "Explorer";
+        }
+    }
+
+    function updateDesktopIcons() {
+        const desktop = document.getElementById('vdg-desktop');
+        if (activeMode !== 'vdg') return;
+        
+        desktop.innerHTML = '';
+        const keys = Object.keys(localStorage).sort();
+
+        keys.forEach(key => {
+            if (key === 'pyscript-styles' || key.startsWith('loglevel:')) return;
+            
+            const isFolder = key.startsWith('FOLDER_');
+            const displayName = isFolder ? key.replace('FOLDER_', '') : key;
+            const iconChar = isFolder ? '📁' : (key.endsWith('.py') ? '🐍' : '📄');
+
+            const iconDiv = document.createElement('div');
+            iconDiv.className = 'desktop-icon';
+            iconDiv.innerHTML = `<span>${iconChar}</span><span>${displayName}</span>`;
+            iconDiv.ondblclick = () => {
+                if (!isFolder) openFile(key);
+            };
+            desktop.appendChild(iconDiv);
+        });
+    }
+
+    function createWindow(title, content) {
+        const vdg = document.getElementById('vdg-desktop');
+        const win = document.createElement('div');
+        win.className = 'vdg-window';
+        win.style.left = '100px';
+        win.style.top = '100px';
+        
+        win.innerHTML = `
+            <div class="win-header">
+                <span>${title}</span>
+                <div class="win-controls">
+                    <div class="win-btn win-min"></div>
+                    <div class="win-btn win-max"></div>
+                    <div class="win-btn win-close" onclick="this.closest('.vdg-window').remove()"></div>
+                </div>
+            </div>
+            <div class="win-content">${content}</div>
+        `;
+
+        // Simple drag logic
+        let isDragging = false;
+        let offset = [0,0];
+        const header = win.querySelector('.win-header');
+        
+        header.onmousedown = (e) => {
+            isDragging = true;
+            offset = [win.offsetLeft - e.clientX, win.offsetTop - e.clientY];
+            win.style.zIndex = 1000;
+        };
+
+        document.onmousemove = (e) => {
+            if (!isDragging) return;
+            win.style.left = (e.clientX + offset[0]) + 'px';
+            win.style.top = (e.clientY + offset[1]) + 'px';
+        };
+
+        document.onmouseup = () => isDragging = false;
+
+        vdg.appendChild(win);
+    }
+
+    function updateClock() {
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        document.getElementById('vdg-clock').innerText = timeStr;
+    }
+
     window.addEventListener('load', () => {
         updateFileList();
         updateTabs();
+        updateClock();
+        setInterval(updateClock, 30000);
+        
         if(currentFile) document.getElementById('code-input').value = localStorage.getItem(currentFile) || "";
+        
         setInterval(() => {
             if (typeof window.run_user_code_internal === 'function' && document.getElementById('output').innerHTML.includes("Booting")) {
                 document.getElementById('output').innerHTML = "--- Terminal Ready ---\n";
