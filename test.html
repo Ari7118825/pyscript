@@ -259,7 +259,7 @@
             flex-grow: 1;
             background: var(--bg-main); 
             color: #d4d4d4; 
-            font-family: 'Consolas', 'Monaco', 'Courier New', monospace; 
+            font-family: 'Cascadia Code', 'Consolas', 'Monaco', 'Courier New', monospace; 
             padding: 15px; 
             border: none; 
             outline: none; 
@@ -568,6 +568,105 @@
         .win-resize:hover {
             background: linear-gradient(135deg, transparent 50%, #888 50%);
         }
+
+        /* ---------- VS Code-like UI refinements (ADDED) ---------- */
+        body {
+            background: radial-gradient(circle at top left, #252526 0, #1e1e1e 40%, #111 100%);
+        }
+
+        #editor-container {
+            box-shadow: 0 0 0 1px rgba(0,0,0,0.7);
+        }
+
+        #tabs-bar {
+            background: #252526;
+            border-bottom-color: #2d2d2d;
+        }
+
+        .tab {
+            background: #2d2d2d;
+            border-right-color: #2a2d2e;
+        }
+
+        .tab:hover {
+            background: #313335;
+            color: #eaeaea;
+        }
+
+        .tab.active {
+            background: #1e1e1e;
+            border-top: 2px solid var(--accent);
+            color: #ffffff;
+        }
+
+        #toolbar {
+            background: #252526;
+            border-bottom-color: #1f1f1f;
+        }
+
+        .activity-icon {
+            font-size: 18px;
+            padding: 10px 0;
+        }
+        .activity-icon.active {
+            background: #37373d;
+            border-left: 3px solid var(--accent);
+            color: #ffffff;
+        }
+
+        .sidebar-footer .footer-btn {
+            background: #2d2d2d;
+            border-color: #3a3a3a;
+        }
+
+        #output {
+            border-top: 1px solid #000000;
+        }
+
+        #status-bar {
+            background: linear-gradient(to right, #007acc, #0467bd);
+            box-shadow: 0 -1px 0 rgba(0,0,0,0.6) inset;
+        }
+
+        #status-left, #status-right {
+            font-size: 11px;
+        }
+
+        /* ---------- Image preview pane (ADDED) ---------- */
+        #image-preview {
+            flex: 1;
+            min-height: 0;
+            display: none; /* Shown only when an image file is active */
+            align-items: center;
+            justify-content: center;
+            background: #1e1e1e;
+            position: relative;
+        }
+
+        #image-preview img {
+            max-width: 100%;
+            max-height: 100%;
+            box-shadow: 0 0 0 1px #333, 0 10px 30px rgba(0,0,0,0.7);
+            border-radius: 4px;
+            background: #252526;
+        }
+
+        #image-preview-meta {
+            position: absolute;
+            bottom: 10px;
+            right: 16px;
+            font-size: 11px;
+            background: rgba(0,0,0,0.7);
+            padding: 4px 8px;
+            border-radius: 3px;
+            color: #cccccc;
+        }
+
+        #image-preview-empty {
+            font-size: 13px;
+            color: #808080;
+        }
+        /* ---------- END Image preview pane (ADDED) ---------- */
     </style>
 
     <script>
@@ -767,6 +866,14 @@
         <div id="code-editor"></div>
         <!-- Fallback textarea -->
         <textarea id="code-input" spellcheck="false" placeholder="Select a file to start coding..."></textarea>
+
+        <!-- Image preview area (ADDED for imported image files) -->
+        <div id="image-preview">
+            <div id="image-preview-empty">No image to display.</div>
+            <img id="image-preview-img" src="" alt="" style="display:none;">
+            <div id="image-preview-meta"></div>
+        </div>
+        <!-- END image preview area (ADDED) -->
         
         <div id="toast-container"></div>
 
@@ -1010,6 +1117,44 @@
         "requests","networkx","pillow","pyyaml","sqlalchemy","statsmodels",
         "beautifulsoup4","lxml","pytest","bokeh","xarray","seaborn"
     ];
+
+    /* -------- Image handling helpers (ADDED) -------- */
+    const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp'];
+
+    function isImageFile(filename) {
+        if (!filename) return false;
+        const lower = filename.toLowerCase();
+        return IMAGE_EXTENSIONS.some(ext => lower.endsWith(ext));
+    }
+
+    function getImageMimeType(filename) {
+        const lower = filename.toLowerCase();
+        if (lower.endsWith('.png')) return 'image/png';
+        if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
+        if (lower.endsWith('.gif')) return 'image/gif';
+        if (lower.endsWith('.svg')) return 'image/svg+xml';
+        if (lower.endsWith('.webp')) return 'image/webp';
+        return 'application/octet-stream';
+    }
+
+    // Read a File as a Data URL for image preview (ADDED)
+    function readFileAsDataURL(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => reject(reader.error || new Error('Failed to read file'));
+            reader.readAsDataURL(file);
+        });
+    }
+
+    // Return an icon character based on file type (ADDED)
+    function getFileIcon(filename) {
+        const lower = (filename || '').toLowerCase();
+        if (lower.endsWith('.py')) return '🐍';
+        if (isImageFile(filename)) return '🖼️';
+        return '📄';
+    }
+    /* ----- END Image handling helpers (ADDED) ----- */
 
     /**
      * WINDOW MANAGER - Virtual desktop windows for Python scripts
@@ -1277,7 +1422,7 @@ main()`);
                 switchFile(filename);
             };
             
-            const icon = filename.endsWith('.py') ? '🐍' : '📄';
+            const icon = getFileIcon(filename); // uses helper (ADDED)
             tab.innerHTML = `
                 <span title="${filename}">${icon} ${filename}</span>
                 <span class="tab-close" onclick="closeTab('${filename}')">×</span>
@@ -1310,7 +1455,7 @@ main()`);
         keys.filter(k => !k.startsWith('FOLDER_') && k !== 'loglevel:webpack-dev-server' && k !== 'pyscript-styles').forEach(key => {
             const div = document.createElement('div');
             div.className = `file-item ${key === currentFile ? 'active' : ''}`;
-            const icon = key.endsWith('.py') ? '🐍' : '📄';
+            const icon = getFileIcon(key); // uses helper (ADDED)
             div.innerHTML = `
                 <div class="item-label" onclick="openFile('${key}')">${icon} ${key}</div>
                 <div class="item-actions">
@@ -1340,13 +1485,67 @@ main()`);
     function switchFile(filename) {
         saveCurrentFile(false); 
         currentFile = filename;
-        const content = localStorage.getItem(filename) || "";
-        if (window.editor) {
-            window.editor.setValue(content);
+
+        const contentRaw = localStorage.getItem(filename) || "";
+        const isImg = isImageFile(filename);
+
+        const codeEditorEl = document.getElementById('code-editor');
+        const codeInputEl = document.getElementById('code-input');
+        const imagePreview = document.getElementById('image-preview');
+        const imagePreviewImg = document.getElementById('image-preview-img');
+        const imagePreviewMeta = document.getElementById('image-preview-meta');
+        const imagePreviewEmpty = document.getElementById('image-preview-empty');
+
+        if (isImg) {
+            // Show image preview, hide code editor/textarea (ADDED)
+            if (codeEditorEl) codeEditorEl.style.display = 'none';
+            if (codeInputEl) codeInputEl.style.display = 'none';
+            if (imagePreview) imagePreview.style.display = 'flex';
+
+            let dataUrl = contentRaw;
+            // If stored as JSON wrapper, unwrap the Data URL (ADDED)
+            if (contentRaw && contentRaw.trim().startsWith('{')) {
+                try {
+                    const parsed = JSON.parse(contentRaw);
+                    if (parsed && parsed.__type === 'image' && parsed.dataUrl) {
+                        dataUrl = parsed.dataUrl;
+                    }
+                } catch (e) {
+                    console.warn('Failed to parse stored image metadata', e);
+                }
+            }
+
+            if (imagePreviewImg) {
+                imagePreviewImg.src = dataUrl || '';
+                imagePreviewImg.style.display = dataUrl ? 'block' : 'none';
+            }
+            if (imagePreviewEmpty) {
+                imagePreviewEmpty.style.display = dataUrl ? 'none' : 'block';
+            }
+            if (imagePreviewMeta) {
+                imagePreviewMeta.textContent = filename;
+            }
         } else {
-            const textarea = document.getElementById('code-input');
-            if (textarea) textarea.value = content;
+            // Standard text/code file: show editor, hide image preview (ADDED)
+            if (imagePreview) imagePreview.style.display = 'none';
+            if (imagePreviewImg) {
+                imagePreviewImg.src = '';
+                imagePreviewImg.style.display = 'none';
+            }
+            if (imagePreviewEmpty) {
+                imagePreviewEmpty.style.display = 'none';
+            }
+            if (codeEditorEl) codeEditorEl.style.display = 'block';
+
+            if (window.editor) {
+                window.editor.setValue(contentRaw);
+                if (codeInputEl) codeInputEl.style.display = 'none';
+            } else if (codeInputEl) {
+                codeInputEl.style.display = 'block';
+                codeInputEl.value = contentRaw;
+            }
         }
+
         updateFileList();
         updateTabs();
     }
@@ -1370,9 +1569,16 @@ main()`);
     }
 
     function saveCurrentFile(showNotify = true) {
+        // Image files are read-only in the editor; keep stored data URL as-is (ADDED)
+        if (currentFile && isImageFile(currentFile)) {
+            if (showNotify) showToast(currentFile, "Image (read-only)");
+            return;
+        }
+
+        const codeInputEl = document.getElementById('code-input');
         const content = window.editor
             ? window.editor.getValue()
-            : (document.getElementById('code-input').value);
+            : (codeInputEl ? codeInputEl.value : "");
         if (currentFile && localStorage.getItem(currentFile) !== null) {
             localStorage.setItem(currentFile, content);
             if(showNotify) showToast(currentFile);
@@ -1415,29 +1621,66 @@ main()`);
         logDebug("Import completed successfully.", "success");
     }
 
+    // Process individual files or folder imports, including images (ADDED)
     async function processFileArray(files) {
         for (let file of files) {
             const path = file.webkitRelativePath || file.name;
-            const content = await file.text();
+
             if (path.includes('/')) {
                 const parts = path.split('/');
                 for(let i=0; i < parts.length - 1; i++) {
                     localStorage.setItem(`FOLDER_${parts[i]}`, "dir");
                 }
             }
-            localStorage.setItem(path, content);
+
+            let storedValue;
+            if (isImageFile(path)) {
+                // Store image data as Data URL inside a small JSON wrapper (ADDED)
+                try {
+                    const dataUrl = await readFileAsDataURL(file);
+                    storedValue = JSON.stringify({
+                        __type: 'image',
+                        dataUrl: dataUrl
+                    });
+                } catch (err) {
+                    console.error('Failed to read image file, falling back to text', err);
+                    storedValue = await file.text();
+                }
+            } else {
+                storedValue = await file.text();
+            }
+
+            localStorage.setItem(path, storedValue);
             if (!openTabs.includes(path)) openTabs.push(path);
             currentFile = path;
         }
     }
 
+    // Process .zip imports, including images (ADDED)
     async function processZip(zipFile) {
         const zip = await JSZip.loadAsync(zipFile);
         for (let filename in zip.files) {
             const file = zip.files[filename];
             if (!file.dir) {
-                const content = await file.async("string");
-                localStorage.setItem(filename, content);
+                let storedValue;
+                if (isImageFile(filename)) {
+                    try {
+                        const base64 = await file.async("base64");
+                        const mime = getImageMimeType(filename);
+                        const dataUrl = `data:${mime};base64,${base64}`;
+                        storedValue = JSON.stringify({
+                            __type: 'image',
+                            dataUrl: dataUrl
+                        });
+                    } catch (err) {
+                        console.error('Failed to read image from zip, falling back to string', err);
+                        storedValue = await file.async("string");
+                    }
+                } else {
+                    storedValue = await file.async("string");
+                }
+
+                localStorage.setItem(filename, storedValue);
                 if (!openTabs.includes(filename)) openTabs.push(filename);
                 currentFile = filename;
             } else {
@@ -1678,7 +1921,7 @@ main()`);
             
             const isFolder = key.startsWith('FOLDER_');
             const displayName = isFolder ? key.replace('FOLDER_', '') : key;
-            const iconChar = isFolder ? '📁' : (key.endsWith('.py') ? '🐍' : '📄');
+            const iconChar = isFolder ? '📁' : getFileIcon(key); // uses helper (ADDED)
 
             const iconDiv = document.createElement('div');
             iconDiv.className = 'desktop-icon';
