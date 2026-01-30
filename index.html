@@ -5,11 +5,8 @@
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>Cloud-less Python IDE</title>
     
-    <!-- PyScript Assets -->
-    <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css">
-    <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
-
-    <style>
+    <!-- Initial Loader Styles -->
+    <style id="pyscript-styles">
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; height: 100vh; margin: 0; background: #1e1e1e; color: white; overflow: hidden; }
         
         /* Sidebar Styles */
@@ -41,6 +38,40 @@
         .new-file-input-group { display: flex; gap: 5px; margin-top: 10px; }
         input[type="text"] { background: #3c3c3c; border: 1px solid #555; color: white; padding: 5px; border-radius: 3px; flex-grow: 1; outline: none; }
     </style>
+
+    <!-- Asset Loading script with CORS Proxy Fallback -->
+    <script>
+        const PYSCRIPT_VERSION = "2024.1.1";
+        const cssUrl = `https://pyscript.net/releases/${PYSCRIPT_VERSION}/core.css`;
+        const jsUrl = `https://pyscript.net/releases/${PYSCRIPT_VERSION}/core.js`;
+        const proxyPrefix = "https://api.codetabs.com/v1/proxy?quest=";
+
+        function loadAssets() {
+            // Load CSS
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = cssUrl;
+            link.onerror = () => {
+                console.warn("Failed to load PyScript CSS, trying proxy fallback...");
+                link.href = proxyPrefix + encodeURIComponent(cssUrl);
+            };
+            document.head.appendChild(link);
+
+            // Load JS
+            const script = document.createElement('script');
+            script.type = 'module';
+            script.src = jsUrl;
+            script.onerror = () => {
+                console.warn("Failed to load PyScript JS, trying proxy fallback...");
+                const proxyScript = document.createElement('script');
+                proxyScript.type = 'module';
+                proxyScript.src = proxyPrefix + encodeURIComponent(jsUrl);
+                document.head.appendChild(proxyScript);
+            };
+            document.head.appendChild(script);
+        }
+        loadAssets();
+    </script>
 </head>
 <body>
 
@@ -194,7 +225,6 @@
         const runBtn = document.getElementById('run-btn');
         const workerElement = document.getElementById('main-worker');
         
-        // Safety check: Is the worker loaded?
         if (!workerElement || !workerElement.pyWorker) {
             appendTerminal("\nSystem Error: PyScript worker is still loading. Please wait a few seconds...");
             return;
@@ -202,7 +232,6 @@
 
         const pyWorker = workerElement.pyWorker;
         
-        // Safety check: Is the sync object available?
         if (!pyWorker.sync || !pyWorker.sync.run_user_code) {
             appendTerminal("\nSystem Error: Python environment is not fully ready. Please wait...");
             return;
@@ -234,13 +263,20 @@
         document.getElementById('code-input').value = localStorage.getItem(currentFile) || "";
         updateFileList();
         
-        // Periodic check for worker readiness to update terminal
+        const startTime = Date.now();
         const checkReady = setInterval(() => {
             const workerElement = document.getElementById('main-worker');
+            const out = document.getElementById('output');
+            
             if (workerElement && workerElement.pyWorker && workerElement.pyWorker.sync) {
-                const out = document.getElementById('output');
                 if(out.innerHTML.includes("Initializing")) {
                     out.innerHTML = "--- Terminal Ready ---\n";
+                }
+                clearInterval(checkReady);
+            } else if (Date.now() - startTime > 30000) {
+                // Timeout after 30 seconds
+                if(out.innerHTML.includes("Initializing")) {
+                    out.innerHTML = "System Error: PyScript took too long to load. Your connection might be blocking the assets. Please try refreshing or checking your network.\n";
                 }
                 clearInterval(checkReady);
             }
