@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Python Browser IDE</title>
+    <title>Python Browser IDE - Multi-File</title>
     
     <!-- JSZip for Zip handling -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -494,7 +494,6 @@
         user_val = js.window.prompt(prompt_text) or ""
         print(user_val) 
         
-        # Check for pip command
         if user_val.strip().lower().startswith("pip install "):
             pkg = user_val.strip().split(" ")[2]
             js.installPackage(pkg)
@@ -510,16 +509,22 @@
         except:
             py_files = dict(files_data)
 
-        # Clear existing local files to ensure workspace matches localStorage
+        # Mirror localStorage filesystem to Pyodide virtual FS
         for filename, content in py_files.items():
-            if filename.startswith('FOLDER_'): continue
+            if filename.startswith('FOLDER_') or filename == 'loglevel:webpack-dev-server' or filename == 'pyscript-styles': 
+                continue
             try:
+                # Ensure path exists for nested files
+                if "/" in filename:
+                    import os
+                    os.makedirs(os.path.dirname(filename), exist_ok=True)
                 with open(filename, "w") as f:
                     f.write(content)
-            except:
-                pass
+            except Exception as e:
+                js.logDebug(f"Error syncing {filename}: {str(e)}", "error")
         
         try:
+            # Execute main code in global scope
             exec(code, globals())
         except Exception as e:
             import traceback
@@ -535,9 +540,9 @@
     let pendingImportFiles = null;
     let currentImportType = null;
 
-    // Initial check
+    // Default File Setup
     if (!localStorage.getItem("main.py")) {
-        localStorage.setItem("main.py", "import numpy as np\nprint('Welcome to the multi-file IDE!')\nprint('Try creating a new .txt or .py file.')\nprint('You can also try: pip install requests in an input() call')");
+        localStorage.setItem("main.py", "import numpy as np\nprint('Welcome to the multi-file IDE!')\nprint('Try creating a new .txt or .py file.')\nprint('You can even import your other local files!')");
     }
 
     function showToast(filename, action = "Saved") {
@@ -660,29 +665,12 @@
         else if (type === 'zip') document.getElementById('zip-import-input').click();
     }
 
-    function handleFileImport(e) {
-        pendingImportFiles = e.target.files;
-        showImportModal();
-    }
+    function handleFileImport(e) { pendingImportFiles = e.target.files; showImportModal(); }
+    function handleFolderImport(e) { pendingImportFiles = e.target.files; showImportModal(); }
+    function handleZipImport(e) { pendingImportFiles = e.target.files[0]; showImportModal(); }
 
-    function handleFolderImport(e) {
-        pendingImportFiles = e.target.files;
-        showImportModal();
-    }
-
-    function handleZipImport(e) {
-        pendingImportFiles = e.target.files[0];
-        showImportModal();
-    }
-
-    function showImportModal() {
-        document.getElementById('import-modal').style.display = 'flex';
-    }
-
-    function closeImportModal() {
-        document.getElementById('import-modal').style.display = 'none';
-        pendingImportFiles = null;
-    }
+    function showImportModal() { document.getElementById('import-modal').style.display = 'flex'; }
+    function closeImportModal() { document.getElementById('import-modal').style.display = 'none'; pendingImportFiles = null; }
 
     async function startImportProcess() {
         const mode = document.querySelector('input[name="import-mode"]:checked').value;
@@ -706,18 +694,14 @@
 
     async function processFileArray(files) {
         for (let file of files) {
-            // webkitRelativePath gives folder structure for folder uploads
             const path = file.webkitRelativePath || file.name;
             const content = await file.text();
-            
-            // Handle folder parts if uploading folder
             if (path.includes('/')) {
                 const parts = path.split('/');
                 for(let i=0; i < parts.length - 1; i++) {
                     localStorage.setItem(`FOLDER_${parts[i]}`, "dir");
                 }
             }
-            
             localStorage.setItem(path, content);
             if (!openTabs.includes(path)) openTabs.push(path);
             currentFile = path;
@@ -742,7 +726,6 @@
     async function exportFilesystem() {
         const zip = new JSZip();
         const keys = Object.keys(localStorage);
-        
         keys.forEach(k => {
             if (k.startsWith('FOLDER_')) {
                 zip.folder(k.replace('FOLDER_', ''));
@@ -750,7 +733,6 @@
                 zip.file(k, localStorage.getItem(k));
             }
         });
-
         const blob = await zip.generateAsync({type:"blob"});
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -763,24 +745,21 @@
         logDebug("Filesystem exported as Zip.", "success");
     }
 
-    /* SIDEBAR ACTIONS */
+    /* UI ACTIONS */
 
     function renameItem(key) {
         const isFolder = key.startsWith('FOLDER_');
         const oldName = isFolder ? key.replace('FOLDER_', '') : key;
         const newName = prompt(`Rename ${oldName} to:`, oldName);
-        
         if (newName && newName !== oldName) {
             const newKey = isFolder ? `FOLDER_${newName}` : newName;
             const content = localStorage.getItem(key);
             localStorage.setItem(newKey, content);
             localStorage.removeItem(key);
-            
             if (!isFolder) {
                 openTabs = openTabs.map(t => t === oldName ? newName : t);
                 if (currentFile === oldName) currentFile = newName;
             }
-            
             updateFileList();
             updateTabs();
             showToast(newName, "Renamed");
@@ -816,21 +795,17 @@
         const input = document.getElementById('new-item-name');
         let name = input.value.trim();
         if (!name) return;
-
         if (newItemType === 'file') {
             localStorage.setItem(name, name.endsWith('.py') ? `# ${name}\n` : "");
             openFile(name);
         } else {
             localStorage.setItem(`FOLDER_${name}`, "dir");
         }
-        
         hideNewInput();
         updateFileList();
     }
 
-    function clearOutput() {
-        document.getElementById('output').innerHTML = "";
-    }
+    function clearOutput() { document.getElementById('output').innerHTML = ""; }
 
     window.appendTerminal = function(text) {
         const output = document.getElementById('output');
@@ -849,29 +824,25 @@
                 currentPackages.push(pkgName);
                 config.textContent = JSON.stringify({ packages: currentPackages });
                 appendTerminal(`[pip] Successfully installed ${pkgName}. Restarting runtime...\n`);
-                logDebug(`Package ${pkgName} added to runtime config.`, "success");
             } else {
                 appendTerminal(`[pip] Requirement already satisfied: ${pkgName}\n`);
             }
         } catch(e) {
-            appendTerminal(`[pip] Error installing ${pkgName}: ${e.message}\n`);
+            appendTerminal(`[pip] Error: ${e.message}\n`);
         }
     };
 
     async function runPythonCode() {
         const runBtn = document.getElementById('run-btn');
         if (typeof window.run_user_code_internal !== 'function') return;
-
         saveCurrentFile(false);
         const code = document.getElementById('code-input').value;
         runBtn.disabled = true;
-        
         const allFiles = {};
         for(let i=0; i<localStorage.length; i++) {
             const k = localStorage.key(i);
             allFiles[k] = localStorage.getItem(k);
         }
-
         setTimeout(() => {
             try {
                 window.run_user_code_internal(code, allFiles);
@@ -887,7 +858,6 @@
         updateFileList();
         updateTabs();
         if(currentFile) document.getElementById('code-input').value = localStorage.getItem(currentFile) || "";
-        
         setInterval(() => {
             if (typeof window.run_user_code_internal === 'function' && document.getElementById('output').innerHTML.includes("Booting")) {
                 document.getElementById('output').innerHTML = "--- Terminal Ready ---\n";
@@ -895,6 +865,5 @@
         }, 1000);
     });
 </script>
-
 </body>
 </html>
