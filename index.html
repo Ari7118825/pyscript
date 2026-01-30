@@ -52,7 +52,6 @@
             console.log(`[DEBUG] ${msg}`);
         }
 
-        // Using a highly stable version known for better compatibility
         const PYSCRIPT_VERSION = "2023.11.1";
         const cssUrl = `https://pyscript.net/releases/${PYSCRIPT_VERSION}/core.css`;
         const jsUrl = `https://pyscript.net/releases/${PYSCRIPT_VERSION}/core.js`;
@@ -61,7 +60,6 @@
         function loadAssets() {
             window.addEventListener('DOMContentLoaded', () => logDebug("DOM Loaded, starting asset load..."));
             
-            // Load CSS
             const link = document.createElement('link');
             link.rel = 'stylesheet';
             link.href = cssUrl;
@@ -72,7 +70,6 @@
             };
             document.head.appendChild(link);
 
-            // Load JS
             const script = document.createElement('script');
             script.type = 'module';
             script.src = jsUrl;
@@ -121,12 +118,10 @@
     packages = ["numpy"]
 </py-config>
 
-<!-- Removed 'worker' attribute to avoid threading issues in restricted browsers -->
 <script type="py">
     import js
     import sys
-    import io
-    from pyscript import display
+    from pyodide.ffi import to_js
 
     # Setup terminal output
     class WebOutput:
@@ -138,21 +133,29 @@
     sys.stdout = WebOutput()
     sys.stderr = WebOutput()
 
-    # Create a wrapper that JS can call
     def run_user_code_internal(code, files_data):
+        # Convert JS Proxy object to Python dict to avoid AttributeError: items
+        try:
+            py_files = files_data.to_py()
+        except:
+            # Fallback for different object types
+            py_files = dict(files_data)
+
         # Sync the virtual filesystem
-        for filename, content in files_data.items():
+        for filename, content in py_files.items():
             try:
                 with open(filename, "w") as f:
                     f.write(content)
-            except:
-                pass
+            except Exception as e:
+                js.console.warn(f"FS Sync error for {filename}: {str(e)}")
         
         try:
-            # Clear previous globals for clean run
+            # Execute with shared globals
             exec(code, globals())
         except Exception as e:
-            print(f"\n❌ Error: {e}")
+            # Full traceback to terminal
+            import traceback
+            traceback.print_exc()
 
     # Bind the function to the window object so JS can see it
     js.window.run_user_code_internal = run_user_code_internal
@@ -163,7 +166,7 @@
     let currentFile = "main.py";
 
     if (!localStorage.getItem("main.py")) {
-        localStorage.setItem("main.py", "import numpy as np\n\nprint('Hello from Python!')\n# Note: Main thread input() can be tricky in some browsers\nname = 'User'\nprint(f'Welcome, {name}!')\n\na = np.array([1, 2, 3])\nprint(f'Numpy Array: {a}')");
+        localStorage.setItem("main.py", "import numpy as np\n\nprint('Hello from Python!')\nname = 'User'\nprint(f'Welcome, {name}!')\n\na = np.array([1, 2, 3])\nprint(f'Numpy Array: {a}')");
     }
 
     function updateFileList() {
@@ -171,7 +174,7 @@
         list.innerHTML = '';
         for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
-            if (key.endsWith('.py')) {
+            if (key && key.endsWith('.py')) {
                 const div = document.createElement('div');
                 div.className = `file-item ${key === currentFile ? 'active' : ''}`;
                 const nameSpan = document.createElement('span');
@@ -224,7 +227,7 @@
     async function runPythonCode() {
         const runBtn = document.getElementById('run-btn');
         
-        if (typeof run_user_code_internal !== 'function') {
+        if (typeof window.run_user_code_internal !== 'function') {
             logDebug("Run Attempt: Python bridge not ready", "error");
             appendTerminal("\nSystem Error: Python is still initializing...");
             return;
@@ -237,12 +240,11 @@
         const allFiles = {};
         for(let i=0; i<localStorage.length; i++) {
             const k = localStorage.key(i);
-            if(k.endsWith('.py')) allFiles[k] = localStorage.getItem(k);
+            if(k && k.endsWith('.py')) allFiles[k] = localStorage.getItem(k);
         }
 
         try {
-            // Call the Python function directly
-            run_user_code_internal(code, allFiles);
+            window.run_user_code_internal(code, allFiles);
         } catch (err) {
             logDebug("Execution Exception: " + err.message, "error");
             appendTerminal("\nSystem Error: " + err.message);
@@ -259,7 +261,7 @@
         const checkReady = setInterval(() => {
             const out = document.getElementById('output');
             
-            if (typeof run_user_code_internal === 'function') {
+            if (typeof window.run_user_code_internal === 'function') {
                 logDebug("Initialization: Successful", "success");
                 if(out.innerHTML.includes("Initializing")) {
                     out.innerHTML = "--- Terminal Ready (Main Thread) ---\n";
