@@ -1016,6 +1016,7 @@
             pygame = types.ModuleType("pygame")
             sys.modules["pygame"] = pygame
             pygame.display = types.SimpleNamespace()
+            pygame.image = types.SimpleNamespace()
             pygame.draw = types.SimpleNamespace()
             pygame.time = types.SimpleNamespace()
 
@@ -1030,11 +1031,28 @@
             def __init__(self, js_win, size):
                 self._js_win = js_win
                 self._size = size
+                self._images = {} # Cache for loaded images
 
             def fill(self, color):
                 w, h = self._size
                 css = _color_to_css(color)
                 self._js_win.fill_rect(0, 0, w, h, css)
+            
+            def blit(self, source, dest):
+                # dest is (x, y)
+                # source is an image object from image.load()
+                try:
+                    image_id = source.id
+                    x, y = dest
+                    self._js_win.draw_image(x, y, image_id)
+                except Exception as e:
+                    print(f"Error in blit: {e}")
+
+        class PygameImage:
+            def __init__(self, image_id, width, height):
+                self.id = image_id
+                self._width = width
+                self._height = height
 
         def _set_mode(size, *args, **kwargs):
             try:
@@ -1050,9 +1068,32 @@
         def _flip():
             # No buffering; drawing is immediate
             return None
+        
+        def _image_load(path):
+            """Loads an image from the VFS and registers it with the JS bridge."""
+            try:
+                # Read the file content from Pyodide's VFS
+                with open(path, "r") as f:
+                    content = f.read()
+                
+                # The content is a JSON string with a dataUrl
+                import json
+                data = json.loads(content)
+                data_url = data.get("dataUrl")
+
+                if not data_url:
+                    raise ValueError("Image file content is not a valid data URL wrapper.")
+
+                # Ask JS to load the image and return an ID and dimensions
+                img_details = _window.js_bridge.load_image(data_url)
+                return PygameImage(img_details.id, img_details.width, img_details.height)
+            except Exception as e:
+                print(f"pygame.image.load error: {e}")
+                return None
 
         pygame.display.set_mode = _set_mode
         pygame.display.flip = _flip
+        pygame.image.load = _image_load
 
         # Basic drawing support
         def _draw_rect(surface, color, rect, width=0):
@@ -1242,6 +1283,42 @@
             win.ctx.clearRect(0, 0, win.canvas.width, win.canvas.height);
         },
 
+        // New methods for image handling in pygame stub
+        loadedImages: {},
+        nextImageId: 1,
+
+        load_image(dataUrl) {
+            const imageId = `img_${this.nextImageId++}`;
+            const img = new Image();
+            const promise = new Promise((resolve, reject) => {
+                img.onload = () => {
+                    this.loadedImages[imageId] = img;
+                    logDebug(`Image loaded into JS bridge: ${imageId} (${img.width}x${img.height})`);
+                    resolve({ id: imageId, width: img.width, height: img.height });
+                };
+                img.onerror = (err) => {
+                    logDebug(`Failed to load image into JS bridge: ${err}`, 'error');
+                    reject(new Error("Image loading failed."));
+                };
+            });
+            img.src = dataUrl;
+            // This is called from Python, which can't await a JS promise directly.
+            // The current design is synchronous, which is a limitation.
+            // For this to work well, we rely on the data URL being loaded from cache or very quickly.
+            // A more robust solution would involve async callbacks into Python.
+            // For now, we'll return details synchronously, assuming load will complete.
+            // The actual drawing will use the loaded image object later.
+            return { id: imageId, width: 0, height: 0 }; // Python side doesn't use w/h yet
+        },
+
+        draw_image(winId, x, y, imageId) {
+            const win = this.windows[winId];
+            const img = this.loadedImages[imageId];
+            if (win && win.ctx && img) {
+                win.ctx.drawImage(img, x, y, win.canvas.width, win.canvas.height);
+            }
+        },
+
         makeDraggable(win) {
             let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
             const header = win.querySelector('.win-header');
@@ -1346,6 +1423,9 @@
                 draw_text: function(x, y, txt, col, f) {
                     WindowManager.drawText(winId, x, y, txt, col, f);
                 },
+                draw_image: function(x, y, imageId) {
+                    WindowManager.draw_image(winId, x, y, imageId);
+                },
                 clear: function() {
                     WindowManager.clear(winId);
                 },
@@ -1353,6 +1433,9 @@
                     WindowManager.close(winId);
                 }
             };
+        },
+        load_image: function(dataUrl) {
+            return WindowManager.load_image(dataUrl);
         },
         print_to_console: function(msg) {
             appendTerminal(msg + "\n");
