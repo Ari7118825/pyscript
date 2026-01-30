@@ -1,0 +1,804 @@
+===========================================
+syntax.syn – Python Browser IDE Window API
+===========================================
+
+This file documents all the syntax you need to:
+
+- Create windows on the Virtual Desktop
+- Draw and update graphics in those windows
+- Handle keyboard and mouse input
+- Build interactive, multi-window apps
+
+All examples are written in plain Python that you can paste into a `.py` file in your IDE and run with the ▶ Run button.
+
+
+ 
+===========================================
+0. QUICK START – MINIMAL APP
+===========================================
+
+This is the *smallest* useful program that opens a window and draws text:
+
+    import js
+
+    def main():
+        # 1) Get the bridge to the window system
+        js_bridge = js.window.js_bridge
+
+        # 2) Create a window: (title, width, height)
+        win = js_bridge.create_window("Hello Window", 400, 250)
+
+        # 3) Clear the window and draw some text
+        win.clear()
+        win.draw_text(40, 80, "Hello from Python!", "white", "24px Arial")
+
+    main()
+
+What happens:
+
+- A window appears on the Virtual Desktop with title “Hello Window”.
+- Text is drawn at coordinates (40, 80) in white, using a 24px font.
+
+
+ 
+===========================================
+1. CORE CONCEPTS
+===========================================
+
+1.1 Python environment
+
+- You write plain Python in `.py` files.
+- When you click ▶ Run, your code runs inside Pyodide (Python in the browser).
+- `print()` goes to the IDE’s Terminal at the bottom.
+
+1.2 Accessing the browser and window API
+
+The IDE exposes a small, simple API to Python via the `js` module:
+
+- `import js` – gives you access to the browser’s JavaScript world.
+- `js.window` – the browser `window` object.
+- `js.window.js_bridge` – a special object that lets Python create and control windows.
+
+Typical startup pattern:
+
+    import js
+
+    def main():
+        js_bridge = js.window.js_bridge
+        # use js_bridge...
+
+    main()
+
+Always call `main()` (or otherwise start your code) at the bottom so it runs when you press ▶ Run.
+
+
+ 
+===========================================
+2. CREATING WINDOWS
+===========================================
+
+2.1 Syntax
+
+    win = js_bridge.create_window(title: str, width: int, height: int)
+
+- `title` – string shown in the window’s title bar.
+- `width` – canvas width in pixels (drawing area).
+- `height` – canvas height in pixels (drawing area).
+
+Returns:
+
+- A `win` object with:
+  - `win.id`          – string ID of the window (used if you need the underlying HTML)
+  - `win.fill_rect`   – draws filled rectangles
+  - `win.draw_text`   – draws text
+  - `win.clear`       – clears the canvas
+  - `win.close`       – closes the window
+
+2.2 Simple example
+
+    import js
+
+    def main():
+        js_bridge = js.window.js_bridge
+
+        # A 500×300 window
+        win = js_bridge.create_window("My App", 500, 300)
+
+        # Background
+        win.clear()
+        win.fill_rect(0, 0, 500, 300, "#202020")
+
+        win.draw_text(20, 40, "Welcome to My App", "#ffffff", "20px Arial")
+
+    main()
+
+2.3 Multiple windows
+
+You can open as many windows as you want:
+
+    import js
+
+    def main():
+        js_bridge = js.window.js_bridge
+
+        main_win = js_bridge.create_window("Main", 400, 250)
+        log_win  = js_bridge.create_window("Log", 300, 200)
+
+        main_win.clear()
+        main_win.draw_text(20, 40, "Main Window", "white", "18px Arial")
+
+        log_win.clear()
+        log_win.draw_text(10, 20, "Log Window", "cyan", "14px monospace")
+
+    main()
+
+
+ 
+===========================================
+3. DRAWING IN WINDOWS
+===========================================
+
+The `win` object supports these core drawing methods:
+
+- `win.clear()`
+- `win.fill_rect(x, y, w, h, color)`
+- `win.draw_text(x, y, text, color, font)`
+
+Coordinate system:
+
+- Origin (0, 0) is at the **top-left** corner of the canvas.
+- `x` increases to the right; `y` increases downward.
+- Units are pixels.
+
+3.1 Clearing the window
+
+    win.clear()
+
+Clears the entire canvas area to transparent/black. Use this before redrawing a frame.
+
+Example:
+
+    win.clear()
+    win.draw_text(20, 40, "After Clear()", "white", "16px Arial")
+
+3.2 Drawing rectangles
+
+Syntax:
+
+    win.fill_rect(x: int, y: int, w: int, h: int, color: str)
+
+- `(x, y)` – top-left corner of the rectangle.
+- `(w, h)` – width and height in pixels.
+- `color` – any valid CSS color string, e.g.:
+  - `"red"`, `"cyan"`, `"white"`
+  - `"#ff0000"`, `"#00ffcc"`, `"#202020"`
+  - `"rgb(255, 0, 0)"`
+
+Example – simple UI layout:
+
+    win.clear()
+
+    # Background
+    win.fill_rect(0, 0, 500, 300, "#1e1e1e")
+
+    # Header bar
+    win.fill_rect(0, 0, 500, 40, "#333333")
+    win.draw_text(10, 25, "My Toolbar", "white", "16px Arial")
+
+    # Side panel
+    win.fill_rect(0, 40, 120, 260, "#252526")
+
+    # Main content area
+    win.fill_rect(120, 40, 380, 260, "#1e1e1e")
+
+3.3 Drawing text
+
+Syntax:
+
+    win.draw_text(x: int, y: int, text: str, color: str, font: str)
+
+- `(x, y)` – baseline position of the text (left edge).
+- `text` – string to draw.
+- `color` – CSS color string.
+- `font` – CSS font string, usually `"SIZEpx FAMILY"`.
+
+Common font examples:
+
+- `"14px monospace"`
+- `"16px Arial"`
+- `"20px 'Segoe UI'"`
+
+Example – status text:
+
+    win.clear()
+    win.fill_rect(0, 0, 400, 200, "#000000")
+
+    win.draw_text(20, 40, "Status: Running", "#00ff00", "16px monospace")
+    win.draw_text(20, 80, "FPS: 60", "#ffffff", "14px monospace")
+
+
+ 
+===========================================
+4. ACCESSING THE UNDERLYING CANVAS
+===========================================
+
+Sometimes you need the exact pixel size of the window’s canvas, or to compute mouse positions relative to it.
+
+You can get the actual `<div>` and `<canvas>` associated with a window using `win.id`:
+
+    import js
+
+    def main():
+        js_bridge = js.window.js_bridge
+        win = js_bridge.create_window("Canvas Info", 400, 300)
+
+        # Get the DOM element for this window
+        win_el = js.document.getElementById(win.id)
+        canvas = win_el.querySelector("canvas")
+
+        width = canvas.width
+        height = canvas.height
+
+        win.clear()
+        win.fill_rect(0, 0, width, height, "#202020")
+        win.draw_text(10, 30, f"Canvas size: {width}x{height}", "white", "16px monospace")
+
+    main()
+
+
+ 
+===========================================
+5. ANIMATION AND GAME LOOPS
+===========================================
+
+There are two common approaches:
+
+- Simple, slower animations using `time.sleep` in a loop.
+- More responsive updates using JavaScript timers (`setInterval`) plus `create_proxy`.
+
+
+ 
+-------------------------------------------
+5.1 Simple animation with time.sleep
+-------------------------------------------
+
+Good for demos and slow animations.
+
+    import js
+    import time
+
+    def main():
+        js_bridge = js.window.js_bridge
+        win = js_bridge.create_window("Simple Animation", 400, 200)
+
+        win.fill_rect(0, 0, 400, 200, "#000000")
+
+        for i in range(20):
+            win.clear()
+            win.fill_rect(0, 0, 400, 200, "#000000")
+
+            # Moving square
+            x = 10 + i * 15
+            y = 80
+            win.fill_rect(x, y, 30, 30, "#00ffcc")
+
+            win.draw_text(10, 30, f"Frame {i+1}", "white", "16px monospace")
+
+            time.sleep(0.2)  # pause 0.2 seconds per frame
+
+    main()
+
+
+ 
+-------------------------------------------
+5.2 Smooth loops with setInterval
+-------------------------------------------
+
+For games and real-time apps, it’s better to use JavaScript’s timer:
+
+- Use `pyodide.ffi.create_proxy` to wrap a Python function.
+- Use `js.window.setInterval(proxy, interval_ms)` to call it repeatedly.
+
+Example – bouncing ball:
+
+    import js
+    import random
+    from pyodide.ffi import create_proxy
+
+    WIDTH = 400
+    HEIGHT = 250
+
+    def main():
+        js_bridge = js.window.js_bridge
+        win = js_bridge.create_window("Bouncing Ball", WIDTH, HEIGHT)
+
+        # Ball state
+        state = {
+            "x": WIDTH // 2,
+            "y": HEIGHT // 2,
+            "vx": 3,
+            "vy": 2,
+            "r": 15,
+        }
+
+        def draw():
+            win.clear()
+            win.fill_rect(0, 0, WIDTH, HEIGHT, "#101010")
+
+            # Draw ball as a square (no circle primitive, but good enough)
+            x = state["x"] - state["r"]
+            y = state["y"] - state["r"]
+            size = state["r"] * 2
+            win.fill_rect(x, y, size, size, "#ff5555")
+
+        def step(*args):
+            # Update position
+            state["x"] += state["vx"]
+            state["y"] += state["vy"]
+
+            # Bounce on edges
+            if state["x"] - state["r"] < 0 or state["x"] + state["r"] > WIDTH:
+                state["vx"] *= -1
+            if state["y"] - state["r"] < 0 or state["y"] + state["r"] > HEIGHT:
+                state["vy"] *= -1
+
+            draw()
+
+        # Wrap Python function so JS can call it
+        step_proxy = create_proxy(step)
+
+        # Call step() every 16 ms (~60 FPS)
+        interval_id = js.window.setInterval(step_proxy, 16)
+
+        # Optional cleanup function for the future
+        def cleanup():
+            js.window.clearInterval(interval_id)
+
+        js.window._bouncing_ball_cleanup = cleanup
+
+        draw()
+        print("Bouncing ball started.")
+
+    main()
+
+
+ 
+===========================================
+6. KEYBOARD AND MOUSE INPUT
+===========================================
+
+The window API itself does not directly provide event callbacks, so we hook into the browser’s events via `js.document` and `create_proxy`.
+
+Basic pattern:
+
+1. Define Python functions like `on_key_down(event)`.
+2. Wrap them with `create_proxy`.
+3. Register with `js.document.addEventListener`.
+
+Events you can listen for:
+
+- `"keydown"`, `"keyup"` – keyboard
+- `"mousemove"`, `"mousedown"`, `"mouseup"` – mouse
+- (and many more browser events if needed)
+
+-------------------------------------------
+6.1 Keyboard input – basic controls
+-------------------------------------------
+
+Example: move a square with Arrow keys or WASD.
+
+    import js
+    from pyodide.ffi import create_proxy
+
+    WIDTH, HEIGHT = 400, 250
+
+    def main():
+        js_bridge = js.window.js_bridge
+        win = js_bridge.create_window("Keyboard Move", WIDTH, HEIGHT)
+
+        state = {
+            "x": WIDTH // 2,
+            "y": HEIGHT // 2,
+            "speed": 10,
+        }
+
+        def redraw():
+            win.clear()
+            win.fill_rect(0, 0, WIDTH, HEIGHT, "#000000")
+            # Square as a 30x30 block
+            win.fill_rect(state["x"], state["y"], 30, 30, "#00ff00")
+            win.draw_text(10, 20, "Use Arrow keys or WASD", "white", "14px monospace")
+
+        def on_key_down(event):
+            key = event.key
+            if key in ("ArrowUp", "w", "W"):
+                state["y"] -= state["speed"]
+            elif key in ("ArrowDown", "s", "S"):
+                state["y"] += state["speed"]
+            elif key in ("ArrowLeft", "a", "A"):
+                state["x"] -= state["speed"]
+            elif key in ("ArrowRight", "d", "D"):
+                state["x"] += state["speed"]
+
+            redraw()
+
+        key_down_proxy = create_proxy(on_key_down)
+        js.document.addEventListener("keydown", key_down_proxy)
+
+        # keep proxy alive so it isn't garbage-collected
+        js.window._kb_move_proxy = key_down_proxy
+
+        redraw()
+        print("Keyboard-controlled square ready.")
+
+    main()
+
+
+ 
+-------------------------------------------
+6.2 Mouse position & key state tracker
+-------------------------------------------
+
+This example shows mouse X/Y relative to the window’s canvas, and which key is currently pressed:
+
+    import js
+    from pyodide.ffi import create_proxy
+
+    def main():
+        # Prevent multiple trackers if you run this several times
+        if getattr(js.window, "_input_tracker_initialized", False):
+            print("Input tracker is already running.")
+            return
+        js.window._input_tracker_initialized = True
+
+        js_bridge = js.window.js_bridge
+        win = js_bridge.create_window("Mouse & Keyboard Tracker", 500, 200)
+        win_id = win.id
+
+        win_el = js.document.getElementById(win_id)
+        canvas = win_el.querySelector("canvas")
+
+        state = {
+            "x": 0,
+            "y": 0,
+            "key": ""
+        }
+
+        def redraw():
+            win.clear()
+            win.fill_rect(0, 0, canvas.width, canvas.height, "#202020")
+
+            win.draw_text(
+                20, 60,
+                f"Mouse: {state['x']}, {state['y']}",
+                "white",
+                "18px monospace"
+            )
+
+            key_text = state["key"] or "None"
+            win.draw_text(
+                20, 110,
+                f"Key down: {key_text}",
+                "white",
+                "18px monospace"
+            )
+
+        def on_mouse_move(event):
+            rect = canvas.getBoundingClientRect()
+            state["x"] = int(event.clientX - rect.left)
+            state["y"] = int(event.clientY - rect.top)
+            redraw()
+
+        def on_key_down(event):
+            state["key"] = event.key
+            redraw()
+
+        def on_key_up(event):
+            if event.key == state["key"]:
+                state["key"] = ""
+                redraw()
+
+        mouse_proxy = create_proxy(on_mouse_move)
+        key_down_proxy = create_proxy(on_key_down)
+        key_up_proxy = create_proxy(on_key_up)
+
+        js.document.addEventListener("mousemove", mouse_proxy)
+        js.document.addEventListener("keydown", key_down_proxy)
+        js.document.addEventListener("keyup", key_up_proxy)
+
+        # Keep proxies alive
+        js.window._input_tracker_proxies = [mouse_proxy, key_down_proxy, key_up_proxy]
+
+        redraw()
+        print("Mouse & keyboard tracker running. Move over the window and press keys.")
+
+    main()
+
+
+ 
+===========================================
+7. WINDOW CONTROL AND MANAGEMENT
+===========================================
+
+From Python, the main controls you have are:
+
+- Close a window:
+  
+      win.close()
+
+- Clear the entire window:
+
+      win.clear()
+
+- Redraw content whenever your state changes (e.g., after input or on each timer tick).
+
+7.1 Closing a window
+
+Example:
+
+    import js
+    import time
+
+    def main():
+        js_bridge = js.window.js_bridge
+        win = js_bridge.create_window("Temporary Window", 300, 150)
+
+        win.clear()
+        win.draw_text(10, 40, "This will close in 3 seconds...", "white", "14px Arial")
+
+        time.sleep(3)
+        win.close()
+        print("Window closed from Python.")
+
+    main()
+
+7.2 Basic “screen management” pattern
+
+Most apps follow this structure:
+
+1. Keep a `state` dict.
+2. Write a `draw()` function that renders the entire screen from `state`.
+3. Input events modify `state`, then call `draw()`.
+
+Skeleton:
+
+    import js
+    from pyodide.ffi import create_proxy
+
+    WIDTH, HEIGHT = 400, 300
+
+    def main():
+        js_bridge = js.window.js_bridge
+        win = js_bridge.create_window("App Skeleton", WIDTH, HEIGHT)
+
+        state = {
+            "message": "Hello",
+            "counter": 0,
+        }
+
+        def draw():
+            win.clear()
+            win.fill_rect(0, 0, WIDTH, HEIGHT, "#101010")
+            win.draw_text(10, 40, state["message"], "white", "18px Arial")
+            win.draw_text(10, 80, f"Counter: {state['counter']}", "cyan", "16px monospace")
+
+        def on_key_down(event):
+            if event.key in (" ", "Spacebar"):  # space
+                state["counter"] += 1
+                draw()
+
+        key_proxy = create_proxy(on_key_down)
+        js.document.addEventListener("keydown", key_proxy)
+        js.window._app_skeleton_proxy = key_proxy
+
+        draw()
+
+    main()
+
+
+ 
+===========================================
+8. ADVANCED EXAMPLE – SNAKE GAME
+===========================================
+
+Here is a condensed Snake game using the same window and input API.
+
+You can copy this into `snake.py`:
+
+    import js
+    import random
+    from pyodide.ffi import create_proxy
+
+    CELL_SIZE = 20
+    GRID_W = 20
+    GRID_H = 15
+    TICK_MS = 120  # lower = faster
+
+    def main():
+        # If a previous Snake game is running, clean it up first
+        prev_cleanup = getattr(js.window, "_snake_cleanup", None)
+        if prev_cleanup is not None:
+            try:
+                prev_cleanup()
+            except Exception:
+                pass
+
+        js_bridge = js.window.js_bridge
+        width = CELL_SIZE * GRID_W
+        height = CELL_SIZE * GRID_H
+        win = js_bridge.create_window("Snake.py", width, height)
+        win_id = win.id
+
+        win_el = js.document.getElementById(win_id)
+        canvas = win_el.querySelector("canvas")
+
+        state = {
+            "snake": [],
+            "dir": (1, 0),
+            "pending_dir": (1, 0),
+            "food": (0, 0),
+            "alive": True,
+            "score": 0,
+        }
+
+        def place_food():
+            while True:
+                x = random.randint(0, GRID_W - 1)
+                y = random.randint(0, GRID_H - 1)
+                if (x, y) not in state["snake"]:
+                    state["food"] = (x, y)
+                    return
+
+        def reset_game():
+            mid_x = GRID_W // 2
+            mid_y = GRID_H // 2
+            state["snake"] = [
+                (mid_x, mid_y),
+                (mid_x - 1, mid_y),
+                (mid_x - 2, mid_y),
+            ]
+            state["dir"] = (1, 0)
+            state["pending_dir"] = (1, 0)
+            state["score"] = 0
+            state["alive"] = True
+            place_food()
+            draw()
+
+        def draw():
+            win.clear()
+            win.fill_rect(0, 0, canvas.width, canvas.height, "#000000")
+
+            # Food
+            fx, fy = state["food"]
+            win.fill_rect(fx * CELL_SIZE, fy * CELL_SIZE, CELL_SIZE, CELL_SIZE, "#ff3333")
+
+            # Snake
+            for i, (x, y) in enumerate(state["snake"]):
+                color = "#66ff66" if i == 0 else "#22aa22"
+                win.fill_rect(
+                    x * CELL_SIZE + 1,
+                    y * CELL_SIZE + 1,
+                    CELL_SIZE - 2,
+                    CELL_SIZE - 2,
+                    color,
+                )
+
+            win.draw_text(8, 18, f"Score: {state['score']}", "white", "14px monospace")
+
+            if not state["alive"]:
+                msg = "GAME OVER - Press R to restart"
+                win.draw_text(30, canvas.height // 2, msg, "yellow", "16px monospace")
+
+        def step(*_args):
+            if not state["alive"]:
+                return
+
+            state["dir"] = state["pending_dir"]
+            dx, dy = state["dir"]
+            head_x, head_y = state["snake"][0]
+            nx, ny = head_x + dx, head_y + dy
+
+            # Wall collision
+            if nx < 0 or nx >= GRID_W or ny < 0 or ny >= GRID_H:
+                state["alive"] = False
+                draw()
+                return
+
+            # Self collision
+            if (nx, ny) in state["snake"]:
+                state["alive"] = False
+                draw()
+                return
+
+            new_head = (nx, ny)
+            state["snake"].insert(0, new_head)
+
+            # Food eaten?
+            if new_head == state["food"]:
+                state["score"] += 1
+                place_food()
+            else:
+                state["snake"].pop()
+
+            draw()
+
+        def on_key_down(event):
+            key = event.key
+            dx, dy = state["dir"]
+
+            if key in ("ArrowUp", "w", "W"):
+                ndx, ndy = (0, -1)
+            elif key in ("ArrowDown", "s", "S"):
+                ndx, ndy = (0, 1)
+            elif key in ("ArrowLeft", "a", "A"):
+                ndx, ndy = (-1, 0)
+            elif key in ("ArrowRight", "d", "D"):
+                ndx, ndy = (1, 0)
+            elif key in ("r", "R"):
+                reset_game()
+                return
+            else:
+                return
+
+            # Prevent 180-degree turn
+            if ndx == -dx and ndy == -dy:
+                return
+
+            state["pending_dir"] = (ndx, ndy)
+
+        step_proxy = create_proxy(step)
+        key_proxy = create_proxy(on_key_down)
+
+        interval_id = js.window.setInterval(step_proxy, TICK_MS)
+        js.document.addEventListener("keydown", key_proxy)
+
+        def cleanup():
+            try:
+                js.window.clearInterval(interval_id)
+            except Exception:
+                pass
+            try:
+                js.document.removeEventListener("keydown", key_proxy)
+            except Exception:
+                pass
+
+        js.window._snake_cleanup = cleanup
+        js.window._snake_state = state
+
+        reset_game()
+        print("Snake started. Use Arrow keys or WASD. Press R to restart.")
+
+    main()
+
+
+ 
+===========================================
+9. BUILDING ANY APP YOU WANT
+===========================================
+
+With the pieces above you can build **any** 2D windowed app in this environment:
+
+- Use `create_window` to create one or more views.
+- Combine `fill_rect` and `draw_text` to build buttons, labels, HUDs, and UIs.
+- Use `create_proxy` and `addEventListener` for:
+  - Keyboard controls
+  - Mouse controls (clicks, dragging, hover effects)
+- Use `setInterval` (or loops with `time.sleep`) for:
+  - Game loops
+  - Animations
+  - Periodic updates (e.g., clocks, status updates)
+- Use normal Python (and packages you install) for:
+  - Data processing
+  - AI/logic
+  - Simulations
+- Use `js_bridge.print_to_console(msg)` if you want to print directly to the IDE console from a “library” function:
+
+      js_bridge.print_to_console("Hello from inside my engine!")
+
+Everything else is about how you structure your state and logic.
+
+
+ 
+===========================================
+END OF syntax.syn
+===========================================
