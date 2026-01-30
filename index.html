@@ -76,7 +76,6 @@
             position: relative;
         }
         
-        /* Resizer Styles */
         .resizer-h {
             width: 4px;
             cursor: col-resize;
@@ -84,9 +83,7 @@
             z-index: 10;
             transition: background 0.2s;
         }
-        .resizer-h:hover, .resizer-h.active {
-            background: var(--resizer-hover);
-        }
+        .resizer-h:hover, .resizer-h.active { background: var(--resizer-hover); }
 
         .resizer-v {
             height: 4px;
@@ -95,9 +92,7 @@
             z-index: 10;
             transition: background 0.2s;
         }
-        .resizer-v:hover, .resizer-v.active {
-            background: var(--resizer-hover);
-        }
+        .resizer-v:hover, .resizer-v.active { background: var(--resizer-hover); }
 
         .sidebar-header {
             padding: 10px 15px;
@@ -113,15 +108,8 @@
             white-space: nowrap;
         }
 
-        .sidebar-actions {
-            display: flex;
-            gap: 8px;
-        }
-
-        .sidebar-actions span {
-            cursor: pointer;
-            opacity: 0.7;
-        }
+        .sidebar-actions { display: flex; gap: 8px; }
+        .sidebar-actions span { cursor: pointer; opacity: 0.7; }
         .sidebar-actions span:hover { opacity: 1; }
 
         #file-list { flex-grow: 1; overflow-y: auto; padding-top: 5px; }
@@ -184,7 +172,6 @@
             min-width: 0;
         }
 
-        /* Editor Area */
         #editor-container { 
             flex-grow: 1; 
             display: flex; 
@@ -233,6 +220,11 @@
             border-bottom: 1px solid var(--border-color); 
         }
 
+        .run { background: #28a745; color: white; border: none; padding: 6px 15px; border-radius: 3px; cursor: pointer; font-weight: bold; }
+        .run:hover { background: #218838; }
+        button { background: #333; color: #eee; border: 1px solid #555; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 12px; }
+        button:hover { background: #444; }
+
         textarea { 
             flex-grow: 1; 
             background: var(--bg-main); 
@@ -246,7 +238,6 @@
             line-height: 1.6; 
         }
 
-        /* Bottom Panels */
         #bottom-panels { 
             height: 280px; 
             min-height: 50px;
@@ -268,19 +259,8 @@
             white-space: nowrap;
         }
 
-        #terminal-area {
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            min-width: 100px;
-        }
-
-        #log-area {
-            display: flex;
-            flex-direction: column;
-            min-width: 100px;
-            width: 300px;
-        }
+        #terminal-area { flex-grow: 1; display: flex; flex-direction: column; min-width: 100px; }
+        #log-area { display: flex; flex-direction: column; min-width: 100px; width: 300px; border-left: 1px solid var(--border-color); }
 
         #output { 
             flex: 1; 
@@ -303,74 +283,39 @@
             overflow-y: auto; 
         }
 
-        #toast-container {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            z-index: 1000;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
+        .log-entry { margin-bottom: 4px; border-bottom: 1px solid #2a2a2a; padding-bottom: 2px; }
+        .log-error { color: var(--error); }
 
+        #toast-container { position: absolute; bottom: 20px; right: 20px; z-index: 1000; display: flex; flex-direction: column; gap: 10px; }
         .toast {
-            background: #333;
-            color: white;
-            padding: 10px 15px;
-            border-left: 4px solid var(--accent);
-            border-radius: 2px;
-            font-size: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-            animation: slideIn 0.3s ease-out;
-            min-width: 200px;
+            background: #333; color: white; padding: 10px 15px; border-left: 4px solid var(--accent); border-radius: 2px;
+            font-size: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); animation: slideIn 0.3s ease-out; min-width: 200px;
         }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
-        #status-bar {
-            height: 22px;
-            background: var(--accent);
-            display: flex;
-            align-items: center;
-            padding: 0 10px;
-            font-size: 12px;
-            color: white;
-            justify-content: space-between;
-            flex-shrink: 0;
-        }
+        #status-bar { height: 22px; background: var(--accent); display: flex; align-items: center; padding: 0 10px; font-size: 12px; color: white; justify-content: space-between; flex-shrink: 0; }
 
-        /* VDG Styles kept same */
+        /* VDG Styles */
         #vdg-container {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: var(--vdg-bg);
-            background-image: linear-gradient(135deg, #2c3e50 25%, #34495e 100%);
-            display: none;
-            flex-direction: column;
-            z-index: 500;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--vdg-bg); background-image: linear-gradient(135deg, #2c3e50 25%, #34495e 100%);
+            display: none; flex-direction: column; z-index: 500;
         }
-
-        #vdg-desktop {
-            flex-grow: 1;
-            position: relative;
-            padding: 20px;
-            display: grid;
-            grid-template-columns: repeat(auto-fill, 80px);
-            grid-template-rows: repeat(auto-fill, 90px);
-            gap: 20px;
-            align-content: start;
-        }
-        
-        #vdg-taskbar {
-            height: 40px;
-            background: rgba(0,0,0,0.8);
-            backdrop-filter: blur(10px);
-            display: flex;
-            align-items: center;
-            padding: 0 10px;
-            gap: 10px;
-            border-top: 1px solid rgba(255,255,255,0.1);
-        }
-
+        #vdg-desktop { flex-grow: 1; position: relative; padding: 20px; display: grid; grid-template-columns: repeat(auto-fill, 80px); grid-template-rows: repeat(auto-fill, 90px); gap: 20px; align-content: start; }
+        .vdg-icon { display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; padding: 10px; border-radius: 5px; transition: background 0.2s; }
+        .vdg-icon:hover { background: rgba(255,255,255,0.1); }
+        .vdg-icon span { font-size: 11px; color: white; text-shadow: 1px 1px 2px black; text-align: center; }
+        #vdg-taskbar { height: 40px; background: rgba(0,0,0,0.8); backdrop-filter: blur(10px); display: flex; align-items: center; padding: 0 10px; gap: 10px; border-top: 1px solid rgba(255,255,255,0.1); }
         .taskbar-btn { padding: 5px 12px; background: rgba(255,255,255,0.1); border-radius: 3px; font-size: 12px; color: #eee; cursor: pointer; }
+
+        .vdg-window {
+            position: absolute; background: #f0f0f0; border-radius: 6px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            display: flex; flex-direction: column; min-width: 200px; min-height: 150px; overflow: hidden;
+        }
+        .window-title { background: #e0e0e0; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; cursor: move; font-size: 12px; font-weight: bold; color: #333; }
+        .window-content { flex-grow: 1; padding: 15px; color: #333; overflow-y: auto; font-size: 13px; }
+        .close-btn { color: #888; cursor: pointer; font-size: 16px; }
+        .close-btn:hover { color: #f44336; }
     </style>
 
     <script>
@@ -415,6 +360,7 @@
             <span onclick="showNewInput('folder')" title="New Folder">📁+</span>
         </div>
     </div>
+    
     <div id="new-item-input" class="new-input-group" style="display:none; padding:8px 10px; background:var(--bg-darker);">
         <input type="text" id="new-item-name" placeholder="Name..." style="width:70%; background:#3c3c3c; border:1px solid #555; color:white; font-size:12px; padding:2px 5px;">
         <button onclick="confirmNewItem()">OK</button>
@@ -425,6 +371,7 @@
     <div id="vdg-menu" style="display:none; flex-grow:1; padding:10px;">
         <div style="font-size:12px; color:#888; margin-bottom:10px;">DESKTOP APPS</div>
         <div class="footer-btn" style="margin-bottom:5px; text-align:left;" onclick="createWindow('About', 'Virtual Desktop v1.0')">ℹ️ System Info</div>
+        <div class="footer-btn" style="margin-bottom:5px; text-align:left;" onclick="createWindow('Calculator', 'Calc content...')">🔢 Calculator</div>
     </div>
     
     <div class="sidebar-footer">
@@ -435,7 +382,6 @@
     </div>
 </div>
 
-<!-- Sidebar Resizer -->
 <div class="resizer-h" id="sidebar-resizer"></div>
 
 <div id="workspace">
@@ -447,10 +393,9 @@
             <button onclick="clearOutput()" style="background: transparent; border: 1px solid #555;">Clear Console</button>
             <span id="status-text" style="margin-left: auto; font-size: 11px; color: #888;">Python 3.x</span>
         </div>
-        <textarea id="code-input" spellcheck="false" placeholder="Select a file..."></textarea>
+        <textarea id="code-input" spellcheck="false" placeholder="Select a file from the explorer or create a new one..."></textarea>
     </div>
 
-    <!-- Bottom Panels Resizer -->
     <div class="resizer-v" id="bottom-resizer"></div>
 
     <div id="bottom-panels">
@@ -459,7 +404,6 @@
             <div id="output">System: Booting Python environment...</div>
         </div>
         
-        <!-- Logs Resizer -->
         <div class="resizer-h" id="logs-resizer"></div>
 
         <div id="log-area">
@@ -472,7 +416,7 @@
 
     <div id="status-bar">
         <div id="status-left">Ready</div>
-        <div id="status-right">UTF-8</div>
+        <div id="status-right">UTF-8 | Python 3.11</div>
     </div>
 
     <!-- VDG Layer -->
@@ -487,22 +431,23 @@
     <div id="toast-container"></div>
 </div>
 
-<!-- Modal for Imports -->
+<!-- Import Modal -->
 <div id="import-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:2000; align-items:center; justify-content:center;">
-    <div style="background:var(--bg-sidebar); padding:20px; border:1px solid var(--border-color); width:300px;">
+    <div style="background:var(--bg-sidebar); padding:20px; border:1px solid var(--border-color); width:300px; border-radius:4px;">
         <span style="font-weight:bold; display:block; margin-bottom:10px;">Import Files</span>
-        <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:15px;">
-            <label style="font-size:12px;"><input type="radio" name="import-mode" value="merge" checked> Merge</label>
-            <label style="font-size:12px;"><input type="radio" name="import-mode" value="overwrite"> Overwrite</label>
+        <p style="font-size:12px; color:#aaa; margin-bottom:15px;">How should we handle the imported files?</p>
+        <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:20px;">
+            <label style="font-size:13px;"><input type="radio" name="import-mode" value="merge" checked> Merge with current files</label>
+            <label style="font-size:13px;"><input type="radio" name="import-mode" value="overwrite"> Overwrite entire workspace</label>
         </div>
         <div style="display:flex; justify-content:flex-end; gap:10px;">
-            <button onclick="document.getElementById('import-modal').style.display='none'" style="background:#555">Cancel</button>
-            <button onclick="startImportProcess()">Import</button>
+            <button onclick="document.getElementById('import-modal').style.display='none'" style="background:#555; border:none;">Cancel</button>
+            <button onclick="startImportProcess()" style="background:var(--accent); border:none;">Import</button>
         </div>
     </div>
 </div>
 
-<input type="file" id="file-import-input" style="display:none;" onchange="handleFileImport(event)">
+<input type="file" id="file-import-input" style="display:none;" onchange="handleFileImport(event)" multiple>
 <input type="file" id="folder-import-input" style="display:none;" webkitdirectory directory onchange="handleFolderImport(event)">
 <input type="file" id="zip-import-input" style="display:none;" accept=".zip" onchange="handleZipImport(event)">
 
@@ -517,21 +462,25 @@
         def flush(self): pass
     sys.stdout = WebOutput()
     sys.stderr = WebOutput()
+    
     def custom_input(p=""):
         if p: print(p, end="")
         v = js.window.prompt(p) or ""
         print(v)
         return v
     builtins.input = custom_input
+
     def run_user_code_internal(code, files_data):
         try:
             py_files = files_data.to_py()
             for f, c in py_files.items():
                 if f.startswith('FOLDER_') or 'loglevel' in f or 'styles' in f: continue
+                # Basic mock for file system in Pyscript environment
                 with open(f, "w") as file: file.write(c)
             exec(code, globals())
         except Exception as e:
-            import traceback; traceback.print_exc()
+            import traceback
+            traceback.print_exc()
     js.window.run_user_code_internal = run_user_code_internal
 </script>
 
@@ -569,30 +518,22 @@
 
         window.addEventListener('mousemove', (e) => {
             if (isResizingH) {
-                const newWidth = e.clientX - 48; // Activity bar width
-                if (newWidth > 150 && newWidth < 600) {
-                    sidebar.style.width = newWidth + 'px';
-                }
+                const newWidth = e.clientX - 48;
+                if (newWidth > 150 && newWidth < 600) sidebar.style.width = newWidth + 'px';
             }
             if (isResizingV) {
-                const newHeight = window.innerHeight - e.clientY - 22; // Status bar height
-                if (newHeight > 50 && newHeight < window.innerHeight * 0.8) {
-                    bottomPanels.style.height = newHeight + 'px';
-                }
+                const newHeight = window.innerHeight - e.clientY - 22;
+                if (newHeight > 50 && newHeight < window.innerHeight * 0.8) bottomPanels.style.height = newHeight + 'px';
             }
             if (isResizingLogs) {
                 const rect = bottomPanels.getBoundingClientRect();
                 const newWidth = rect.right - e.clientX;
-                if (newWidth > 100 && newWidth < rect.width * 0.7) {
-                    logArea.style.width = newWidth + 'px';
-                }
+                if (newWidth > 100 && newWidth < rect.width * 0.7) logArea.style.width = newWidth + 'px';
             }
         });
 
         window.addEventListener('mouseup', () => {
-            isResizingH = false;
-            isResizingV = false;
-            isResizingLogs = false;
+            isResizingH = isResizingV = isResizingLogs = false;
             sidebarResizer.classList.remove('active');
             bottomResizer.classList.remove('active');
             logsResizer.classList.remove('active');
@@ -600,19 +541,64 @@
         });
     }
 
-    // --- CORE APP LOGIC (Simplified from original for space but keeping all features) ---
+    // --- FILE SYSTEM & TABS ---
     let currentFile = "main.py";
     let openTabs = ["main.py"];
-    let pendingImport = null;
-    let importType = '';
+    let newItemType = 'file';
 
     if (!localStorage.getItem("main.py")) {
-        localStorage.setItem("main.py", "print('Hello from Resizable Python IDE!')\n# Drag the sidebar or console edges to resize them!");
+        localStorage.setItem("main.py", "print('Hello from Python Browser IDE!')\n\n# Try importing numpy\nimport numpy as np\nprint(f'Numpy version: {np.__version__}')");
+    }
+
+    function updateUI() {
+        const list = document.getElementById('file-list');
+        list.innerHTML = '';
+        
+        // Folders first
+        Object.keys(localStorage).sort().forEach(k => {
+            if (!k.startsWith('FOLDER_')) return;
+            const folderName = k.replace('FOLDER_', '');
+            const div = document.createElement('div');
+            div.className = 'folder-item';
+            div.innerHTML = `
+                <div class="item-label">📁 ${folderName}</div>
+                <div class="item-actions">
+                    <span class="action-icon" onclick="deleteItem('${k}')">🗑️</span>
+                </div>
+            `;
+            list.appendChild(div);
+        });
+
+        // Files
+        Object.keys(localStorage).sort().forEach(k => {
+            if (k.startsWith('FOLDER_') || k.includes('loglevel') || k === 'pyscript-styles') return;
+            const div = document.createElement('div');
+            div.className = `file-item ${k === currentFile ? 'active' : ''}`;
+            div.innerHTML = `
+                <div class="item-label" onclick="switchFile('${k}')">${k.endsWith('.py') ? '🐍' : '📄'} ${k}</div>
+                <div class="item-actions">
+                    <span class="action-icon" onclick="renameItem('${k}')">✏️</span>
+                    <span class="action-icon" onclick="deleteItem('${k}')">🗑️</span>
+                </div>
+            `;
+            list.appendChild(div);
+        });
+
+        const bar = document.getElementById('tabs-bar');
+        bar.innerHTML = '';
+        openTabs.forEach(t => {
+            const div = document.createElement('div');
+            div.className = `tab ${t === currentFile ? 'active' : ''}`;
+            div.innerHTML = `<span>${t}</span><span style="margin-left:8px; font-weight:bold" onclick="event.stopPropagation(); closeTab('${t}')">×</span>`;
+            div.onclick = () => switchFile(t);
+            bar.appendChild(div);
+        });
     }
 
     function switchFile(f) {
         saveCurrentFile(false);
         currentFile = f;
+        if (!openTabs.includes(f)) openTabs.push(f);
         document.getElementById('code-input').value = localStorage.getItem(f) || "";
         updateUI();
     }
@@ -623,43 +609,76 @@
         if (show) showToast(currentFile);
     }
 
-    function updateUI() {
-        const list = document.getElementById('file-list');
-        list.innerHTML = '';
-        Object.keys(localStorage).sort().forEach(k => {
-            if (k.startsWith('FOLDER_') || k.includes('loglevel')) return;
-            const div = document.createElement('div');
-            div.className = `file-item ${k === currentFile ? 'active' : ''}`;
-            div.innerHTML = `<span onclick="switchFile('${k}')">${k.endsWith('.py')?'🐍':'📄'} ${k}</span>`;
-            list.appendChild(div);
-        });
-
-        const bar = document.getElementById('tabs-bar');
-        bar.innerHTML = '';
-        openTabs.forEach(t => {
-            const div = document.createElement('div');
-            div.className = `tab ${t === currentFile ? 'active' : ''}`;
-            div.innerHTML = `<span>${t}</span><span style="margin-left:5px" onclick="closeTab('${t}')">×</span>`;
-            div.onclick = (e) => { if(e.target.innerText !== '×') switchFile(t); };
-            bar.appendChild(div);
-        });
-    }
-
     function closeTab(t) {
         openTabs = openTabs.filter(x => x !== t);
-        if (currentFile === t) currentFile = openTabs[0] || "";
+        if (currentFile === t) currentFile = openTabs.length > 0 ? openTabs[0] : null;
+        if (currentFile) switchFile(currentFile);
+        else {
+            document.getElementById('code-input').value = "";
+            updateUI();
+        }
+    }
+
+    // --- ACTIONS ---
+    function showNewInput(type) {
+        newItemType = type;
+        const group = document.getElementById('new-item-input');
+        group.style.display = 'block';
+        document.getElementById('new-item-name').focus();
+    }
+
+    function confirmNewItem() {
+        const name = document.getElementById('new-item-name').value.trim();
+        if (!name) return;
+        if (newItemType === 'file') {
+            if (!localStorage.getItem(name)) localStorage.setItem(name, "# New file\n");
+            switchFile(name);
+        } else {
+            localStorage.setItem('FOLDER_' + name, 'true');
+        }
+        document.getElementById('new-item-name').value = '';
+        document.getElementById('new-item-input').style.display = 'none';
         updateUI();
     }
 
+    function deleteItem(k) {
+        if (confirm(`Delete ${k}?`)) {
+            localStorage.removeItem(k);
+            if (k === currentFile) closeTab(k);
+            updateUI();
+        }
+    }
+
+    function renameItem(k) {
+        const n = prompt("New name:", k);
+        if (n && n !== k) {
+            localStorage.setItem(n, localStorage.getItem(k));
+            localStorage.removeItem(k);
+            if (currentFile === k) currentFile = n;
+            openTabs = openTabs.map(t => t === k ? n : t);
+            updateUI();
+        }
+    }
+
+    // --- RUNTIME ---
     async function runPythonCode() {
         const btn = document.getElementById('run-btn');
         btn.innerText = "⌛ Running...";
+        btn.disabled = true;
+        
         try {
             const data = {};
-            for(let i=0; i<localStorage.length; i++) data[localStorage.key(i)] = localStorage.getItem(localStorage.key(i));
+            for(let i=0; i<localStorage.length; i++) {
+                const k = localStorage.key(i);
+                data[k] = localStorage.getItem(k);
+            }
+            logDebug(`Executing code for file: ${currentFile}`);
             await window.run_user_code_internal(document.getElementById('code-input').value, data);
+        } catch (err) {
+            logDebug(err.message, 'error');
         } finally {
             btn.innerText = "▶ Run";
+            btn.disabled = false;
         }
     }
 
@@ -674,57 +693,109 @@
     function switchMode(m, el) {
         document.querySelectorAll('.activity-icon').forEach(i => i.classList.remove('active'));
         el.classList.add('active');
-        document.getElementById('vdg-container').style.display = m === 'vdg' ? 'flex' : 'none';
-        document.getElementById('editor-container').style.display = m === 'editor' ? 'flex' : 'none';
-        document.getElementById('bottom-panels').style.display = m === 'editor' ? 'flex' : 'none';
+        
+        const isVdg = m === 'vdg';
+        document.getElementById('vdg-container').style.display = isVdg ? 'flex' : 'none';
+        document.getElementById('editor-container').style.display = isVdg ? 'none' : 'flex';
+        document.getElementById('bottom-panels').style.display = isVdg ? 'none' : 'flex';
+        document.getElementById('sidebar-title').innerText = isVdg ? 'Desktop' : 'Explorer';
+        document.getElementById('file-list').style.display = isVdg ? 'none' : 'block';
+        document.getElementById('vdg-menu').style.display = isVdg ? 'block' : 'none';
+        document.getElementById('explorer-actions').style.display = isVdg ? 'none' : 'flex';
     }
 
-    function showToast(f) {
-        const c = document.getElementById('toast-container');
-        const t = document.createElement('div');
-        t.className = 'toast';
-        t.innerText = `Saved ${f}`;
-        c.appendChild(t);
-        setTimeout(() => t.remove(), 2000);
-    }
+    // --- IMPORT/EXPORT ---
+    let pendingImport = null;
+    let importType = '';
 
-    // Import Handling
     function triggerImport(t) {
         importType = t;
-        const inputMap = {'file':'file-import-input', 'folder':'folder-import-input', 'zip':'zip-import-input'};
-        document.getElementById(inputMap[t]).click();
+        const map = {'file':'file-import-input', 'folder':'folder-import-input', 'zip':'zip-import-input'};
+        document.getElementById(map[t]).click();
     }
+
     function handleFileImport(e) { pendingImport = e.target.files; document.getElementById('import-modal').style.display='flex'; }
     function handleFolderImport(e) { pendingImport = e.target.files; document.getElementById('import-modal').style.display='flex'; }
     function handleZipImport(e) { pendingImport = e.target.files[0]; document.getElementById('import-modal').style.display='flex'; }
-    
+
     async function startImportProcess() {
         const mode = document.querySelector('input[name="import-mode"]:checked').value;
         if (mode === 'overwrite') localStorage.clear();
+        
         if (importType === 'zip') {
             const zip = await JSZip.loadAsync(pendingImport);
             for (let f in zip.files) {
                 if (!zip.files[f].dir) localStorage.setItem(f, await zip.files[f].async("string"));
             }
         } else {
-            for (let f of pendingImport) localStorage.setItem(f.name, await f.text());
+            for (let f of pendingImport) {
+                const text = await f.text();
+                localStorage.setItem(f.name, text);
+            }
         }
         document.getElementById('import-modal').style.display='none';
         updateUI();
+        showToast("Import complete");
     }
 
     function exportFilesystem() {
         const zip = new JSZip();
         Object.keys(localStorage).forEach(k => {
-            if (!k.includes('loglevel')) zip.file(k, localStorage.getItem(k));
+            if (!k.startsWith('FOLDER_') && !k.includes('loglevel')) zip.file(k, localStorage.getItem(k));
         });
         zip.generateAsync({type:"blob"}).then(b => {
             const a = document.createElement('a');
             a.href = URL.createObjectURL(b);
-            a.download = "workspace.zip";
+            a.download = "python_workspace.zip";
             a.click();
         });
     }
+
+    // --- VDG WINDOWS ---
+    function createWindow(title, content) {
+        const win = document.createElement('div');
+        win.className = 'vdg-window';
+        win.style.left = '100px'; win.style.top = '100px';
+        win.style.width = '300px'; win.style.height = '200px';
+        win.innerHTML = `
+            <div class="window-title">
+                <span>${title}</span>
+                <span class="close-btn" onclick="this.closest('.vdg-window').remove()">×</span>
+            </div>
+            <div class="window-content">${content}</div>
+        `;
+        document.getElementById('vdg-desktop').appendChild(win);
+        makeDraggable(win);
+    }
+
+    function makeDraggable(el) {
+        let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+        const header = el.querySelector('.window-title');
+        header.onmousedown = (e) => {
+            e.preventDefault();
+            pos3 = e.clientX; pos4 = e.clientY;
+            document.onmouseup = () => { document.onmouseup = null; document.onmousemove = null; };
+            document.onmousemove = (e) => {
+                e.preventDefault();
+                pos1 = pos3 - e.clientX; pos2 = pos4 - e.clientY;
+                pos3 = e.clientX; pos4 = e.clientY;
+                el.style.top = (el.offsetTop - pos2) + "px";
+                el.style.left = (el.offsetLeft - pos1) + "px";
+            };
+        };
+    }
+
+    function showToast(msg) {
+        const c = document.getElementById('toast-container');
+        const t = document.createElement('div');
+        t.className = 'toast'; t.innerText = msg;
+        c.appendChild(t);
+        setTimeout(() => t.remove(), 2500);
+    }
+
+    setInterval(() => {
+        document.getElementById('vdg-clock').innerText = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    }, 1000);
 
     window.onload = () => {
         initResizing();
