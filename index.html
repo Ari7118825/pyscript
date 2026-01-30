@@ -103,26 +103,21 @@
 
         .file-item { 
             cursor: pointer; 
-            padding: 4px 20px; 
+            padding: 4px 10px 4px 20px; 
             font-size: 13px; 
             display: flex; 
             align-items: center; 
             justify-content: space-between;
             transition: background 0.1s; 
-            group: hover;
         }
         .file-item:hover { background: #2a2d2e; }
         .file-item.active { background: #37373d; color: white; }
         
-        .item-label { display: flex; align-items: center; gap: 8px; flex-grow: 1; }
-        .delete-icon { 
-            font-size: 10px; 
-            opacity: 0; 
-            color: var(--error); 
-            padding: 2px 5px;
-        }
-        .file-item:hover .delete-icon, .folder-item:hover .delete-icon { opacity: 0.7; }
-        .delete-icon:hover { opacity: 1 !important; }
+        .item-label { display: flex; align-items: center; gap: 8px; flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .item-actions { display: flex; gap: 5px; opacity: 0; }
+        .file-item:hover .item-actions, .folder-item:hover .item-actions { opacity: 0.7; }
+        .action-icon { cursor: pointer; padding: 0 4px; font-size: 12px; }
+        .action-icon:hover { opacity: 1 !important; color: white; }
 
         /* Editor Area */
         #editor-container { 
@@ -138,10 +133,12 @@
             background: var(--bg-darker);
             display: flex;
             overflow-x: auto;
+            border-bottom: 1px solid var(--border-color);
         }
 
         .tab {
             min-width: 120px;
+            max-width: 200px;
             padding: 0 10px;
             background: #2d2d2d;
             border-right: 1px solid var(--bg-darker);
@@ -151,6 +148,7 @@
             font-size: 12px;
             cursor: pointer;
             color: #969696;
+            flex-shrink: 0;
         }
 
         .tab.active {
@@ -158,6 +156,14 @@
             color: white;
             border-top: 1px solid var(--accent);
         }
+
+        .tab-close {
+            margin-left: 8px;
+            padding: 2px 5px;
+            border-radius: 3px;
+            opacity: 0.5;
+        }
+        .tab-close:hover { background: #444; opacity: 1; }
 
         #toolbar { 
             padding: 8px 20px; 
@@ -224,6 +230,9 @@
             text-transform: uppercase;
             border-bottom: 1px solid var(--border-color);
             color: #aaaaaa;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
         #terminal-area {
@@ -318,14 +327,12 @@
         const jsUrl = `https://pyscript.net/releases/${PYSCRIPT_VERSION}/core.js`;
 
         function loadAssets() {
-            logDebug("Initializing components...");
+            logDebug("Initializing core components...");
             const link = document.createElement('link');
-            link.rel = 'stylesheet';
-            link.href = cssUrl;
+            link.rel = 'stylesheet'; link.href = cssUrl;
             document.head.appendChild(link);
             const script = document.createElement('script');
-            script.type = 'module';
-            script.src = jsUrl;
+            script.type = 'module'; script.src = jsUrl;
             document.head.appendChild(script);
         }
         loadAssets();
@@ -354,26 +361,27 @@
 </div>
 
 <div id="editor-container">
-    <div id="tabs-bar">
-        <div class="tab active" id="active-tab-label">main.py</div>
-    </div>
+    <div id="tabs-bar"></div>
     <div id="toolbar">
         <button class="run" id="run-btn" onclick="runPythonCode()">▶ Run</button>
         <button onclick="saveCurrentFile()">Save</button>
         <button onclick="clearOutput()" style="background: transparent; border: 1px solid #555;">Clear Console</button>
-        <span id="status-text" style="margin-left: auto; font-size: 11px; color: #888;">Python 3.x Pyodide</span>
+        <span id="status-text" style="margin-left: auto; font-size: 11px; color: #888;">Python 3.x Engine</span>
     </div>
-    <textarea id="code-input" spellcheck="false"></textarea>
+    <textarea id="code-input" spellcheck="false" placeholder="Select a file to start coding..."></textarea>
     
     <div id="toast-container"></div>
 
     <div id="bottom-panels">
         <div id="terminal-area">
-            <div class="panel-header">Terminal</div>
-            <div id="output">System: Booting Python engine...</div>
+            <div class="panel-header">
+                Terminal
+                <span style="font-size:9px; opacity:0.6;">Try: pip install requests</span>
+            </div>
+            <div id="output">System: Booting Python environment...</div>
         </div>
         <div style="display: flex; flex-direction: column; flex: 1;">
-            <div class="panel-header">Debug Logs</div>
+            <div class="panel-header">Logs</div>
             <div id="debug-log">
                 <div class="log-entry">--- Session Started ---</div>
             </div>
@@ -381,19 +389,21 @@
     </div>
 
     <div id="status-bar">
-        <div>Ready</div>
-        <div>UTF-8</div>
+        <div id="status-left">Ready</div>
+        <div id="status-right">UTF-8</div>
     </div>
 </div>
 
 <py-config>
-    packages = ["numpy"]
+    packages = ["numpy", "pandas"]
 </py-config>
 
 <script type="py">
     import js
     import sys
     import builtins
+    from pyodide.http import pyfetch
+    import asyncio
 
     class WebOutput:
         def write(self, text):
@@ -409,6 +419,13 @@
             print(prompt_text, end="")
         user_val = js.window.prompt(prompt_text) or ""
         print(user_val) 
+        
+        # Check for pip command
+        if user_val.strip().lower().startswith("pip install "):
+            pkg = user_val.strip().split(" ")[2]
+            js.installPackage(pkg)
+            return ""
+            
         return user_val
 
     builtins.input = custom_input
@@ -419,6 +436,7 @@
         except:
             py_files = dict(files_data)
 
+        # Clear existing local files to ensure workspace matches localStorage
         for filename, content in py_files.items():
             if filename.startswith('FOLDER_'): continue
             try:
@@ -438,20 +456,22 @@
 
 <script>
     let currentFile = "main.py";
+    let openTabs = ["main.py"];
     let newItemType = 'file';
 
+    // Initial check
     if (!localStorage.getItem("main.py")) {
-        localStorage.setItem("main.py", "a = input('Input a number: ')\nb = input('Input a second number: ')\nprint(f'The sum is {int(a) + int(b)}')");
+        localStorage.setItem("main.py", "import numpy as np\nprint('Welcome to the multi-file IDE!')\nprint('Try creating a new .txt or .py file.')\nprint('You can also try: pip install requests in an input() call')");
     }
 
-    function showToast(filename) {
+    function showToast(filename, action = "Saved") {
         const container = document.getElementById('toast-container');
         const toast = document.createElement('div');
         toast.className = 'toast';
         const now = new Date().toLocaleTimeString();
         toast.innerHTML = `
-            <div style="font-weight:bold; margin-bottom:4px;">File Saved</div>
-            <div style="opacity:0.8;">${filename}</div>
+            <div style="font-weight:bold; margin-bottom:4px;">File ${action}</div>
+            <div style="opacity:0.8; font-size:11px;">${filename}</div>
             <div style="font-size:10px; margin-top:5px; opacity:0.6;">${now}</div>
         `;
         container.appendChild(toast);
@@ -461,45 +481,87 @@
         }, 3000);
     }
 
+    function updateTabs() {
+        const bar = document.getElementById('tabs-bar');
+        bar.innerHTML = '';
+        openTabs.forEach(filename => {
+            const tab = document.createElement('div');
+            tab.className = `tab ${filename === currentFile ? 'active' : ''}`;
+            tab.onclick = (e) => {
+                if(e.target.classList.contains('tab-close')) return;
+                switchFile(filename);
+            };
+            
+            const icon = filename.endsWith('.py') ? '🐍' : '📄';
+            tab.innerHTML = `
+                <span title="${filename}">${icon} ${filename}</span>
+                <span class="tab-close" onclick="closeTab('${filename}')">×</span>
+            `;
+            bar.appendChild(tab);
+        });
+    }
+
     function updateFileList() {
         const list = document.getElementById('file-list');
         list.innerHTML = '';
-        
-        const keys = [];
-        for (let i = 0; i < localStorage.length; i++) {
-            keys.push(localStorage.key(i));
-        }
-        keys.sort();
+        const keys = Object.keys(localStorage).sort();
 
-        // Folders first
+        // Folders
         keys.filter(k => k.startsWith('FOLDER_')).forEach(key => {
             const folderName = key.replace('FOLDER_', '');
             const div = document.createElement('div');
             div.className = 'folder-item';
             div.innerHTML = `
                 <div class="item-label">📁 ${folderName}</div>
-                <div class="delete-icon" onclick="deleteItem('${key}')" title="Delete Folder">🗑️</div>
+                <div class="item-actions">
+                    <span class="action-icon" onclick="renameItem('${key}')">✏️</span>
+                    <span class="action-icon" onclick="deleteItem('${key}')">🗑️</span>
+                </div>
             `;
             list.appendChild(div);
         });
 
         // Files
-        keys.filter(k => k.endsWith('.py')).forEach(key => {
+        keys.filter(k => !k.startsWith('FOLDER_') && k !== 'loglevel:webpack-dev-server').forEach(key => {
             const div = document.createElement('div');
             div.className = `file-item ${key === currentFile ? 'active' : ''}`;
+            const icon = key.endsWith('.py') ? '🐍' : '📄';
             div.innerHTML = `
-                <div class="item-label" onclick="switchFile('${key}')">🐍 ${key}</div>
-                <div class="delete-icon" onclick="deleteItem('${key}')" title="Delete File">🗑️</div>
+                <div class="item-label" onclick="openFile('${key}')">${icon} ${key}</div>
+                <div class="item-actions">
+                    <span class="action-icon" onclick="renameItem('${key}')">✏️</span>
+                    <span class="action-icon" onclick="deleteItem('${key}')">🗑️</span>
+                </div>
             `;
             list.appendChild(div);
         });
     }
 
+    function openFile(filename) {
+        if (!openTabs.includes(filename)) {
+            openTabs.push(filename);
+        }
+        switchFile(filename);
+    }
+
     function switchFile(filename) {
         saveCurrentFile(false); 
         currentFile = filename;
-        document.getElementById('active-tab-label').innerText = filename;
         document.getElementById('code-input').value = localStorage.getItem(filename) || "";
+        updateFileList();
+        updateTabs();
+    }
+
+    function closeTab(filename) {
+        openTabs = openTabs.filter(t => t !== filename);
+        if (currentFile === filename) {
+            if (openTabs.length > 0) switchFile(openTabs[openTabs.length - 1]);
+            else {
+                currentFile = "";
+                document.getElementById('code-input').value = "";
+            }
+        }
+        updateTabs();
         updateFileList();
     }
 
@@ -511,20 +573,39 @@
         }
     }
 
-    function deleteItem(key) {
-        const type = key.startsWith('FOLDER_') ? 'folder' : 'file';
-        if (confirm(`Are you sure you want to delete this ${type}?`)) {
+    function renameItem(key) {
+        const isFolder = key.startsWith('FOLDER_');
+        const oldName = isFolder ? key.replace('FOLDER_', '') : key;
+        const newName = prompt(`Rename ${oldName} to:`, oldName);
+        
+        if (newName && newName !== oldName) {
+            const newKey = isFolder ? `FOLDER_${newName}` : newName;
+            const content = localStorage.getItem(key);
+            localStorage.setItem(newKey, content);
             localStorage.removeItem(key);
-            if (key === currentFile) {
-                const next = Object.keys(localStorage).find(k => k.endsWith('.py'));
-                if (next) switchFile(next);
-                else {
-                    currentFile = "";
-                    document.getElementById('code-input').value = "";
-                    document.getElementById('active-tab-label').innerText = "No file";
-                }
+            
+            if (!isFolder) {
+                // Update tabs
+                openTabs = openTabs.map(t => t === oldName ? newName : t);
+                if (currentFile === oldName) currentFile = newName;
+            }
+            
+            updateFileList();
+            updateTabs();
+            showToast(newName, "Renamed");
+        }
+    }
+
+    function deleteItem(key) {
+        if (confirm(`Delete ${key.replace('FOLDER_', '')}?`)) {
+            localStorage.removeItem(key);
+            openTabs = openTabs.filter(t => t !== key);
+            if (currentFile === key) {
+                currentFile = openTabs.length > 0 ? openTabs[0] : "";
+                document.getElementById('code-input').value = currentFile ? localStorage.getItem(currentFile) : "";
             }
             updateFileList();
+            updateTabs();
         }
     }
 
@@ -546,11 +627,10 @@
         if (!name) return;
 
         if (newItemType === 'file') {
-            if (!name.endsWith('.py')) name += '.py';
-            localStorage.setItem(name, `# ${name}\n`);
-            switchFile(name);
+            localStorage.setItem(name, name.endsWith('.py') ? `# ${name}\n` : "");
+            openFile(name);
         } else {
-            localStorage.setItem(`FOLDER_${name}`, "folder_marker");
+            localStorage.setItem(`FOLDER_${name}`, "dir");
         }
         
         hideNewInput();
@@ -567,6 +647,24 @@
         span.textContent = text;
         output.appendChild(span);
         output.scrollTop = output.scrollHeight;
+    };
+
+    window.installPackage = function(pkgName) {
+        appendTerminal(`\n[pip] Collecting ${pkgName}...\n`);
+        const config = document.querySelector('py-config');
+        try {
+            const currentPackages = JSON.parse(config.textContent).packages;
+            if (!currentPackages.includes(pkgName)) {
+                currentPackages.push(pkgName);
+                config.textContent = JSON.stringify({ packages: currentPackages });
+                appendTerminal(`[pip] Successfully installed ${pkgName}. Restarting runtime...\n`);
+                logDebug(`Package ${pkgName} added to runtime config.`, "success");
+            } else {
+                appendTerminal(`[pip] Requirement already satisfied: ${pkgName}\n`);
+            }
+        } catch(e) {
+            appendTerminal(`[pip] Error installing ${pkgName}: ${e.message}\n`);
+        }
     };
 
     async function runPythonCode() {
@@ -595,11 +693,13 @@
     }
 
     window.addEventListener('load', () => {
-        document.getElementById('code-input').value = localStorage.getItem(currentFile) || "";
         updateFileList();
+        updateTabs();
+        if(currentFile) document.getElementById('code-input').value = localStorage.getItem(currentFile) || "";
+        
         setInterval(() => {
             if (typeof window.run_user_code_internal === 'function' && document.getElementById('output').innerHTML.includes("Booting")) {
-                document.getElementById('output').innerHTML = "--- Python Engine Ready ---\n";
+                document.getElementById('output').innerHTML = "--- Terminal Ready ---\n";
             }
         }, 1000);
     });
