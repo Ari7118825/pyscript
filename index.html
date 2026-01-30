@@ -30,7 +30,7 @@
             overflow: hidden; 
         }
 
-        /* Activity Bar (Slim Left Strip) */
+        /* Activity Bar */
         #activity-bar {
             width: 48px;
             background: var(--bg-activity);
@@ -46,11 +46,13 @@
             color: #858585;
             font-size: 24px;
             cursor: pointer;
+            padding: 10px 0;
+            width: 100%;
+            text-align: center;
         }
         .activity-icon.active {
             color: white;
             border-left: 2px solid white;
-            padding-left: 2px;
         }
 
         /* Sidebar */
@@ -72,21 +74,55 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            border-bottom: 1px solid var(--border-color);
         }
 
-        #file-list { flex-grow: 1; overflow-y: auto; }
+        .sidebar-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .sidebar-actions span {
+            cursor: pointer;
+            opacity: 0.7;
+        }
+        .sidebar-actions span:hover { opacity: 1; }
+
+        #file-list { flex-grow: 1; overflow-y: auto; padding-top: 5px; }
+        
+        .folder-item {
+            font-size: 13px;
+            padding: 4px 10px;
+            color: #ccc;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(255,255,255,0.03);
+            margin-bottom: 2px;
+        }
+
         .file-item { 
             cursor: pointer; 
-            padding: 6px 20px; 
+            padding: 4px 20px; 
             font-size: 13px; 
             display: flex; 
             align-items: center; 
-            gap: 8px;
+            justify-content: space-between;
             transition: background 0.1s; 
+            group: hover;
         }
         .file-item:hover { background: #2a2d2e; }
         .file-item.active { background: #37373d; color: white; }
-        .file-icon { color: #519aba; }
+        
+        .item-label { display: flex; align-items: center; gap: 8px; flex-grow: 1; }
+        .delete-icon { 
+            font-size: 10px; 
+            opacity: 0; 
+            color: var(--error); 
+            padding: 2px 5px;
+        }
+        .file-item:hover .delete-icon, .folder-item:hover .delete-icon { opacity: 0.7; }
+        .delete-icon:hover { opacity: 1 !important; }
 
         /* Editor Area */
         #editor-container { 
@@ -94,6 +130,7 @@
             display: flex; 
             flex-direction: column; 
             min-width: 0;
+            position: relative;
         }
 
         #tabs-bar {
@@ -119,6 +156,7 @@
         .tab.active {
             background: var(--bg-main);
             color: white;
+            border-top: 1px solid var(--accent);
         }
 
         #toolbar { 
@@ -141,6 +179,34 @@
             font-size: 14px; 
             resize: none; 
             line-height: 1.6; 
+        }
+
+        /* Notification Toast */
+        #toast-container {
+            position: absolute;
+            bottom: 300px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toast {
+            background: #333;
+            color: white;
+            padding: 10px 15px;
+            border-left: 4px solid var(--accent);
+            border-radius: 2px;
+            font-size: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            animation: slideIn 0.3s ease-out;
+            min-width: 200px;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
         }
 
         /* Bottom Panels */
@@ -205,9 +271,15 @@
         button:hover { background: var(--accent-hover); }
         button.run { background: #2ea043; }
         button.run:hover { background: #3fb950; }
-        button:disabled { opacity: 0.5; cursor: not-allowed; }
         
-        .new-file-input-group { padding: 10px; display: flex; gap: 4px; }
+        .new-input-group { 
+            padding: 8px 10px; 
+            display: none; 
+            background: var(--bg-darker);
+            border-bottom: 1px solid var(--border-color);
+        }
+        .new-input-group.active { display: flex; gap: 4px; }
+        
         input[type="text"] { 
             background: #3c3c3c; 
             border: 1px solid #555; 
@@ -218,7 +290,6 @@
             flex-grow: 1;
         }
 
-        /* Status Bar */
         #status-bar {
             height: 22px;
             background: var(--accent);
@@ -247,17 +318,14 @@
         const jsUrl = `https://pyscript.net/releases/${PYSCRIPT_VERSION}/core.js`;
 
         function loadAssets() {
-            logDebug("Initializing core components...");
-            
+            logDebug("Initializing components...");
             const link = document.createElement('link');
             link.rel = 'stylesheet';
             link.href = cssUrl;
             document.head.appendChild(link);
-
             const script = document.createElement('script');
             script.type = 'module';
             script.src = jsUrl;
-            script.onload = () => logDebug("PyScript Runtime connected", "success");
             document.head.appendChild(script);
         }
         loadAssets();
@@ -267,18 +335,20 @@
 
 <div id="activity-bar">
     <div class="activity-icon active">📄</div>
-    <div class="activity-icon">🔍</div>
-    <div class="activity-icon">⚙️</div>
 </div>
 
 <div id="sidebar">
     <div class="sidebar-header">
         <span>Explorer</span>
-        <span style="cursor:pointer" title="New File">+</span>
+        <div class="sidebar-actions">
+            <span onclick="showNewInput('file')" title="New File">📄+</span>
+            <span onclick="showNewInput('folder')" title="New Folder">📁+</span>
+        </div>
     </div>
-    <div class="new-file-input-group">
-        <input type="text" id="new-filename" placeholder="New file name...">
-        <button onclick="createNewFile()">Add</button>
+    <div id="new-item-input" class="new-input-group">
+        <input type="text" id="new-item-name" placeholder="Name...">
+        <button onclick="confirmNewItem()">OK</button>
+        <button onclick="hideNewInput()" style="background:#555">X</button>
     </div>
     <div id="file-list"></div>
 </div>
@@ -295,13 +365,15 @@
     </div>
     <textarea id="code-input" spellcheck="false"></textarea>
     
+    <div id="toast-container"></div>
+
     <div id="bottom-panels">
         <div id="terminal-area">
             <div class="panel-header">Terminal</div>
-            <div id="output">System: Booting Python environment...</div>
+            <div id="output">System: Booting Python engine...</div>
         </div>
         <div style="display: flex; flex-direction: column; flex: 1;">
-            <div class="panel-header">Debug Console</div>
+            <div class="panel-header">Debug Logs</div>
             <div id="debug-log">
                 <div class="log-entry">--- Session Started ---</div>
             </div>
@@ -334,16 +406,9 @@
 
     def custom_input(prompt_text=""):
         if prompt_text:
-            # Print the prompt text
             print(prompt_text, end="")
-        
-        # Get user input via JS prompt
         user_val = js.window.prompt(prompt_text) or ""
-        
-        # Echo the user's input back to terminal followed by a newline 
-        # to ensure following prints start on a new line
         print(user_val) 
-        
         return user_val
 
     builtins.input = custom_input
@@ -355,6 +420,7 @@
             py_files = dict(files_data)
 
         for filename, content in py_files.items():
+            if filename.startswith('FOLDER_'): continue
             try:
                 with open(filename, "w") as f:
                     f.write(content)
@@ -368,55 +434,127 @@
             traceback.print_exc()
 
     js.window.run_user_code_internal = run_user_code_internal
-    js.logDebug("Environment initialized successfully", "success")
 </script>
 
 <script>
     let currentFile = "main.py";
+    let newItemType = 'file';
 
     if (!localStorage.getItem("main.py")) {
-        localStorage.setItem("main.py", "a = input('Input a number: ')\nb = input('Input a second number: ')\nc = int(a) + int(b)\n\nprint(f'The sum is {c}')");
+        localStorage.setItem("main.py", "a = input('Input a number: ')\nb = input('Input a second number: ')\nprint(f'The sum is {int(a) + int(b)}')");
+    }
+
+    function showToast(filename) {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        const now = new Date().toLocaleTimeString();
+        toast.innerHTML = `
+            <div style="font-weight:bold; margin-bottom:4px;">File Saved</div>
+            <div style="opacity:0.8;">${filename}</div>
+            <div style="font-size:10px; margin-top:5px; opacity:0.6;">${now}</div>
+        `;
+        container.appendChild(toast);
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
     }
 
     function updateFileList() {
         const list = document.getElementById('file-list');
         list.innerHTML = '';
+        
+        const keys = [];
         for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key && key.endsWith('.py')) {
-                const div = document.createElement('div');
-                div.className = `file-item ${key === currentFile ? 'active' : ''}`;
-                div.innerHTML = `<span class="file-icon">🐍</span> ${key}`;
-                div.onclick = () => switchFile(key);
-                list.appendChild(div);
-            }
+            keys.push(localStorage.key(i));
         }
+        keys.sort();
+
+        // Folders first
+        keys.filter(k => k.startsWith('FOLDER_')).forEach(key => {
+            const folderName = key.replace('FOLDER_', '');
+            const div = document.createElement('div');
+            div.className = 'folder-item';
+            div.innerHTML = `
+                <div class="item-label">📁 ${folderName}</div>
+                <div class="delete-icon" onclick="deleteItem('${key}')" title="Delete Folder">🗑️</div>
+            `;
+            list.appendChild(div);
+        });
+
+        // Files
+        keys.filter(k => k.endsWith('.py')).forEach(key => {
+            const div = document.createElement('div');
+            div.className = `file-item ${key === currentFile ? 'active' : ''}`;
+            div.innerHTML = `
+                <div class="item-label" onclick="switchFile('${key}')">🐍 ${key}</div>
+                <div class="delete-icon" onclick="deleteItem('${key}')" title="Delete File">🗑️</div>
+            `;
+            list.appendChild(div);
+        });
     }
 
     function switchFile(filename) {
-        saveCurrentFile(); 
+        saveCurrentFile(false); 
         currentFile = filename;
         document.getElementById('active-tab-label').innerText = filename;
         document.getElementById('code-input').value = localStorage.getItem(filename) || "";
         updateFileList();
     }
 
-    function saveCurrentFile() {
+    function saveCurrentFile(showNotify = true) {
         const content = document.getElementById('code-input').value;
-        localStorage.setItem(currentFile, content);
+        if (currentFile && localStorage.getItem(currentFile) !== null) {
+            localStorage.setItem(currentFile, content);
+            if(showNotify) showToast(currentFile);
+        }
     }
 
-    function createNewFile() {
-        const input = document.getElementById('new-filename');
+    function deleteItem(key) {
+        const type = key.startsWith('FOLDER_') ? 'folder' : 'file';
+        if (confirm(`Are you sure you want to delete this ${type}?`)) {
+            localStorage.removeItem(key);
+            if (key === currentFile) {
+                const next = Object.keys(localStorage).find(k => k.endsWith('.py'));
+                if (next) switchFile(next);
+                else {
+                    currentFile = "";
+                    document.getElementById('code-input').value = "";
+                    document.getElementById('active-tab-label').innerText = "No file";
+                }
+            }
+            updateFileList();
+        }
+    }
+
+    function showNewInput(type) {
+        newItemType = type;
+        const group = document.getElementById('new-item-input');
+        group.classList.add('active');
+        document.getElementById('new-item-name').focus();
+    }
+
+    function hideNewInput() {
+        document.getElementById('new-item-input').classList.remove('active');
+        document.getElementById('new-item-name').value = "";
+    }
+
+    function confirmNewItem() {
+        const input = document.getElementById('new-item-name');
         let name = input.value.trim();
         if (!name) return;
-        if (!name.endsWith('.py')) name += '.py';
-        if (!localStorage.getItem(name)) {
+
+        if (newItemType === 'file') {
+            if (!name.endsWith('.py')) name += '.py';
             localStorage.setItem(name, `# ${name}\n`);
-            input.value = '';
-            updateFileList();
             switchFile(name);
+        } else {
+            localStorage.setItem(`FOLDER_${name}`, "folder_marker");
         }
+        
+        hideNewInput();
+        updateFileList();
     }
 
     function clearOutput() {
@@ -433,19 +571,16 @@
 
     async function runPythonCode() {
         const runBtn = document.getElementById('run-btn');
-        if (typeof window.run_user_code_internal !== 'function') {
-            appendTerminal("\n[System] Waiting for Python engine...");
-            return;
-        }
+        if (typeof window.run_user_code_internal !== 'function') return;
 
-        saveCurrentFile();
+        saveCurrentFile(false);
         const code = document.getElementById('code-input').value;
         runBtn.disabled = true;
         
         const allFiles = {};
         for(let i=0; i<localStorage.length; i++) {
             const k = localStorage.key(i);
-            if(k && k.endsWith('.py')) allFiles[k] = localStorage.getItem(k);
+            allFiles[k] = localStorage.getItem(k);
         }
 
         setTimeout(() => {
@@ -462,11 +597,9 @@
     window.addEventListener('load', () => {
         document.getElementById('code-input').value = localStorage.getItem(currentFile) || "";
         updateFileList();
-        
-        const checkReady = setInterval(() => {
-            if (typeof window.run_user_code_internal === 'function') {
+        setInterval(() => {
+            if (typeof window.run_user_code_internal === 'function' && document.getElementById('output').innerHTML.includes("Booting")) {
                 document.getElementById('output').innerHTML = "--- Python Engine Ready ---\n";
-                clearInterval(checkReady);
             }
         }, 1000);
     });
