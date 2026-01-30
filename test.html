@@ -558,7 +558,7 @@
         <div style="font-size:11px; padding:10px; background:#2a2a2a; border-radius:4px; line-height:1.6;">
             <strong>Virtual Desktop Engine</strong><br>
             Python scripts can create windows using:<br>
-            <code style="background:#1a1a1a; padding:2px 5px; display:block; margin-top:5px;">import js_bridge<br>win = js_bridge.create_window("Title", 400, 300)</code>
+            <code style="background:#1a1a1a; padding:2px 5px; display:block; margin-top:5px;">import js<br>from js import document<br>js_bridge = js.window.js_bridge<br>js_bridge.create_window("Test", 400, 300)</code>
         </div>
     </div>
     
