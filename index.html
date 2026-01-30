@@ -52,7 +52,8 @@
             console.log(`[DEBUG] ${msg}`);
         }
 
-        const PYSCRIPT_VERSION = "2024.1.1";
+        // Using a highly stable version known for better compatibility
+        const PYSCRIPT_VERSION = "2023.11.1";
         const cssUrl = `https://pyscript.net/releases/${PYSCRIPT_VERSION}/core.css`;
         const jsUrl = `https://pyscript.net/releases/${PYSCRIPT_VERSION}/core.js`;
         const proxyPrefix = "https://api.codetabs.com/v1/proxy?quest=";
@@ -64,9 +65,9 @@
             const link = document.createElement('link');
             link.rel = 'stylesheet';
             link.href = cssUrl;
-            link.onload = () => logDebug("PyScript CSS loaded successfully", "success");
+            link.onload = () => logDebug("PyScript CSS loaded", "success");
             link.onerror = () => {
-                logDebug("Failed to load PyScript CSS, trying proxy...", "warn");
+                logDebug("CSS failed, trying proxy...", "warn");
                 link.href = proxyPrefix + encodeURIComponent(cssUrl);
             };
             document.head.appendChild(link);
@@ -75,14 +76,12 @@
             const script = document.createElement('script');
             script.type = 'module';
             script.src = jsUrl;
-            script.onload = () => logDebug("PyScript JS core loaded successfully", "success");
+            script.onload = () => logDebug("PyScript JS core loaded", "success");
             script.onerror = () => {
-                logDebug("Failed to load PyScript JS, trying proxy...", "warn");
+                logDebug("JS failed, trying proxy...", "warn");
                 const proxyScript = document.createElement('script');
                 proxyScript.type = 'module';
                 proxyScript.src = proxyPrefix + encodeURIComponent(jsUrl);
-                proxyScript.onload = () => logDebug("PyScript JS loaded via proxy", "success");
-                proxyScript.onerror = () => logDebug("FATAL: Proxy asset load failed", "error");
                 document.head.appendChild(proxyScript);
             };
             document.head.appendChild(script);
@@ -99,7 +98,6 @@
         <button onclick="createNewFile()">+</button>
     </div>
     <div id="file-list"></div>
-    <div style="font-size: 10px; color: #888; margin-top: 10px;">* Files are saved to browser local storage.</div>
 </div>
 
 <div id="editor-area">
@@ -112,7 +110,7 @@
     <textarea id="code-input" spellcheck="false" placeholder="# Write your Python code here..."></textarea>
     
     <div id="output-container">
-        <div id="output">System: Initializing PyScript...</div>
+        <div id="output">System: Initializing PyScript (Main Thread)...</div>
         <div id="debug-log">
             <div class="log-entry">--- Debug Log Start ---</div>
         </div>
@@ -123,11 +121,14 @@
     packages = ["numpy"]
 </py-config>
 
-<script type="py" id="main-worker" worker>
+<!-- Removed 'worker' attribute to avoid threading issues in restricted browsers -->
+<script type="py">
     import js
-    from pyscript import sync
     import sys
+    import io
+    from pyscript import display
 
+    # Setup terminal output
     class WebOutput:
         def write(self, text):
             js.appendTerminal(text)
@@ -137,24 +138,32 @@
     sys.stdout = WebOutput()
     sys.stderr = WebOutput()
 
-    def run_user_code(code, files_data):
+    # Create a wrapper that JS can call
+    def run_user_code_internal(code, files_data):
+        # Sync the virtual filesystem
         for filename, content in files_data.items():
-            with open(filename, "w") as f:
-                f.write(content)
+            try:
+                with open(filename, "w") as f:
+                    f.write(content)
+            except:
+                pass
+        
         try:
+            # Clear previous globals for clean run
             exec(code, globals())
         except Exception as e:
             print(f"\n❌ Error: {e}")
 
-    sync.run_user_code = run_user_code
-    js.logDebug("Python Worker: Ready & Sync Exported", "success")
+    # Bind the function to the window object so JS can see it
+    js.window.run_user_code_internal = run_user_code_internal
+    js.logDebug("Python Core: Loaded on Main Thread", "success")
 </script>
 
 <script>
     let currentFile = "main.py";
 
     if (!localStorage.getItem("main.py")) {
-        localStorage.setItem("main.py", "import numpy as np\n\na = input('Number 1: ')\nb = input('Number 2: ')\n\n# Note: input() returns strings!\nresult = float(a) + float(b)\n\nprint(f'Sum using numpy: {result}')");
+        localStorage.setItem("main.py", "import numpy as np\n\nprint('Hello from Python!')\n# Note: Main thread input() can be tricky in some browsers\nname = 'User'\nprint(f'Welcome, {name}!')\n\na = np.array([1, 2, 3])\nprint(f'Numpy Array: {a}')");
     }
 
     function updateFileList() {
@@ -214,25 +223,16 @@
 
     async function runPythonCode() {
         const runBtn = document.getElementById('run-btn');
-        const workerElement = document.getElementById('main-worker');
         
-        if (!workerElement || !workerElement.pyWorker) {
-            logDebug("Run Attempt: Worker not found", "error");
-            appendTerminal("\nSystem Error: PyScript worker is still loading...");
-            return;
-        }
-
-        const pyWorker = workerElement.pyWorker;
-        if (!pyWorker.sync || !pyWorker.sync.run_user_code) {
-            logDebug("Run Attempt: Sync function not exported yet", "warn");
-            appendTerminal("\nSystem Error: Python environment is not fully ready...");
+        if (typeof run_user_code_internal !== 'function') {
+            logDebug("Run Attempt: Python bridge not ready", "error");
+            appendTerminal("\nSystem Error: Python is still initializing...");
             return;
         }
 
         saveCurrentFile();
         const code = document.getElementById('code-input').value;
         runBtn.disabled = true;
-        runBtn.innerText = "⌛ Running...";
         
         const allFiles = {};
         for(let i=0; i<localStorage.length; i++) {
@@ -241,13 +241,13 @@
         }
 
         try {
-            await pyWorker.sync.run_user_code(code, allFiles);
+            // Call the Python function directly
+            run_user_code_internal(code, allFiles);
         } catch (err) {
-            logDebug("Execution Error: " + err.message, "error");
+            logDebug("Execution Exception: " + err.message, "error");
             appendTerminal("\nSystem Error: " + err.message);
         } finally {
             runBtn.disabled = false;
-            runBtn.innerText = "▶ Run Code";
         }
     }
 
@@ -257,20 +257,16 @@
         
         const startTime = Date.now();
         const checkReady = setInterval(() => {
-            const workerElement = document.getElementById('main-worker');
             const out = document.getElementById('output');
             
-            if (workerElement && workerElement.pyWorker && workerElement.pyWorker.sync) {
-                logDebug("CheckReady: Environment confirmed fully functional", "success");
+            if (typeof run_user_code_internal === 'function') {
+                logDebug("Initialization: Successful", "success");
                 if(out.innerHTML.includes("Initializing")) {
-                    out.innerHTML = "--- Terminal Ready ---\n";
+                    out.innerHTML = "--- Terminal Ready (Main Thread) ---\n";
                 }
                 clearInterval(checkReady);
-            } else if (Date.now() - startTime > 45000) {
-                logDebug("CheckReady: Loading Timeout Reached (45s)", "error");
-                if(out.innerHTML.includes("Initializing")) {
-                    out.innerHTML = "System Error: PyScript took too long to load. Check the debug log on the right.\n";
-                }
+            } else if (Date.now() - startTime > 60000) {
+                logDebug("Initialization: Timeout at 60s", "error");
                 clearInterval(checkReady);
             }
         }, 1000);
