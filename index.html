@@ -2,102 +2,119 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>Cloud-less Python IDE</title>
+    
+    <!-- PyScript Assets -->
     <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css">
     <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
+
     <style>
-        body { font-family: sans-serif; display: flex; height: 100vh; margin: 0; background: #1e1e1e; color: white; }
-        #sidebar { width: 250px; background: #252526; padding: 15px; border-right: 1px solid #333; }
-        #editor-area { flex-grow: 1; display: flex; flex-direction: column; }
-        textarea { flex-grow: 1; background: #1e1e1e; color: #d4d4d4; font-family: 'Courier New', monospace; padding: 20px; border: none; outline: none; font-size: 16px; }
-        #controls { padding: 10px; background: #333; display: flex; gap: 10px; }
-        #output { height: 200px; background: #000; color: #00ff00; padding: 10px; overflow-y: auto; font-family: monospace; border-top: 2px solid #555; }
-        .file-item { cursor: pointer; padding: 5px; margin: 2px 0; border-radius: 3px; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; height: 100vh; margin: 0; background: #1e1e1e; color: white; overflow: hidden; }
+        
+        /* Sidebar Styles */
+        #sidebar { width: 260px; background: #252526; padding: 15px; border-right: 1px solid #333; display: flex; flex-direction: column; }
+        #file-list { flex-grow: 1; overflow-y: auto; margin-top: 10px; }
+        .file-item { cursor: pointer; padding: 8px 12px; margin: 2px 0; border-radius: 4px; font-size: 14px; transition: background 0.2s; display: flex; justify-content: space-between; align-items: center; }
         .file-item:hover { background: #37373d; }
-        button { cursor: pointer; background: #007acc; color: white; border: none; padding: 5px 15px; }
+        .file-item.active { background: #094771; color: white; }
+        .delete-btn { color: #ff5f56; font-weight: bold; padding: 0 5px; opacity: 0.5; }
+        .delete-btn:hover { opacity: 1; }
+
+        /* Editor Area Styles */
+        #editor-area { flex-grow: 1; display: flex; flex-direction: column; position: relative; }
+        #controls { padding: 10px 20px; background: #333; display: flex; align-items: center; gap: 15px; border-bottom: 1px solid #444; }
+        #current-file-label { font-weight: bold; color: #61dafb; min-width: 100px; }
+        
+        textarea { flex-grow: 1; background: #1e1e1e; color: #d4d4d4; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; padding: 20px; border: none; outline: none; font-size: 16px; resize: none; line-height: 1.5; }
+        
+        /* Terminal Styles */
+        #output { height: 220px; background: #000; color: #00ff00; padding: 15px; overflow-y: auto; font-family: 'Consolas', monospace; border-top: 2px solid #555; font-size: 14px; white-space: pre-wrap; }
+        
+        /* Buttons and Inputs */
+        button { cursor: pointer; background: #007acc; color: white; border: none; padding: 6px 16px; border-radius: 4px; font-size: 14px; transition: background 0.2s; }
+        button:hover { background: #0062a3; }
+        button.run { background: #28a745; font-weight: bold; }
+        button.run:hover { background: #218838; }
+        
+        .new-file-input-group { display: flex; gap: 5px; margin-top: 10px; }
+        input[type="text"] { background: #3c3c3c; border: 1px solid #555; color: white; padding: 5px; border-radius: 3px; flex-grow: 1; outline: none; }
     </style>
 </head>
 <body>
 
 <div id="sidebar">
-    <h3>📁 Files</h3>
+    <h3 style="margin-top:0">📁 Workspace</h3>
+    <div class="new-file-input-group">
+        <input type="text" id="new-filename" placeholder="name.py">
+        <button onclick="createNewFile()">+</button>
+    </div>
     <div id="file-list"></div>
-    <hr>
-    <input type="text" id="new-filename" placeholder="filename.py" style="width: 80%;">
-    <button onclick="createNewFile()" style="margin-top:5px">+</button>
+    <div style="font-size: 10px; color: #888; margin-top: 10px;">* Files are saved to your browser local storage.</div>
 </div>
 
 <div id="editor-area">
     <div id="controls">
         <span id="current-file-label">main.py</span>
-        <button py-click="save_current_file">Save</button>
-        <button py-click="run_python" style="background: #28a745;">▶ Run</button>
+        <button onclick="saveCurrentFile()">💾 Save</button>
+        <button class="run" id="run-btn" onclick="runPythonCode()">▶ Run Code</button>
+        <button onclick="clearOutput()" style="background: #444; margin-left: auto;">Clear Terminal</button>
     </div>
-    <textarea id="code-input"></textarea>
-    <div id="output">System: PyScript loading...</div>
+    <textarea id="code-input" spellcheck="false" placeholder="# Write your Python code here..."></textarea>
+    <div id="output">System: Initializing PyScript Worker...</div>
 </div>
 
+<!-- Configuration -->
 <py-config>
     packages = ["numpy"]
 </py-config>
 
-<script type="py">
+<!-- The Worker Script: Where the Python logic lives -->
+<script type="py" id="main-worker" worker>
     import js
-    from pyscript import display
-    import os
+    from pyscript import sync
+    import sys
+    import io
 
-    # Virtual storage handler
-    class FileManager:
-        def __init__(self):
-            self.current_file = "main.py"
-            self.load_files_into_vfs()
+    # This class captures print() statements and sends them to the UI
+    class WebOutput:
+        def write(self, text):
+            # Send text to the UI thread
+            js.console.log("Python output: " + text)
+            js.appendTerminal(text)
+        def flush(self):
+            pass
 
-        def load_files_into_vfs(self):
-            # Get all keys from browser localStorage
-            keys = js.Object.keys(js.localStorage)
-            for i in range(keys.length):
-                key = keys[i]
-                if key.endswith(".py"):
-                    content = js.localStorage.getItem(key)
-                    # Write into Pyodide's virtual RAM filesystem
-                    with open(key, "w") as f:
-                        f.write(content)
-            self.refresh_ui()
+    sys.stdout = WebOutput()
+    sys.stderr = WebOutput()
 
-        def refresh_ui(self):
-            # Tell JS to update the sidebar list
-            js.updateFileList()
-
-    fm = FileManager()
-
-    def save_current_file(event):
-        content = js.document.getElementById("code-input").value
-        filename = fm.current_file
-        # Save to Browser Storage
-        js.localStorage.setItem(filename, content)
-        # Save to Python VFS so it's importable
-        with open(filename, "w") as f:
-            f.write(content)
-        js.console.log(f"Saved {filename}")
-
-    def run_python(event):
-        code = js.document.getElementById("code-input").value
-        js.document.getElementById("output").innerHTML = ""
+    def run_user_code(code, files_data):
+        # 1. Update the virtual file system with current storage state
+        # This allows cross-file imports to work
+        for filename, content in files_data.items():
+            with open(filename, "w") as f:
+                f.write(content)
+        
+        # 2. Execute the code
         try:
-            # We use exec with a global namespace to allow persistence
+            # We execute in a shared global scope to allow persistence if desired
+            # or a clean dict {} if you want full isolation
             exec(code, globals())
         except Exception as e:
-            display(f"Error: {e}", target="output")
+            print(f"\n❌ Error: {e}")
 
-    def switch_file(filename):
-        fm.current_file = filename
-        js.document.getElementById("current-file-label").innerText = filename
-        content = js.localStorage.getItem(filename) or ""
-        js.document.getElementById("code-input").value = content
+    # Export function to be called from Main Thread
+    sync.run_user_code = run_user_code
 </script>
 
 <script>
-    // Bridge between UI and Python
+    let currentFile = "main.py";
+
+    // Initialize default file if empty
+    if (!localStorage.getItem("main.py")) {
+        localStorage.setItem("main.py", "import numpy as np\n\na = input('Number 1: ')\nb = input('Number 2: ')\n\n# Note: input() returns strings!\nresult = float(a) + float(b)\n\nprint(f'Sum using numpy: {result}')");
+    }
+
     function updateFileList() {
         const list = document.getElementById('file-list');
         list.innerHTML = '';
@@ -105,28 +122,114 @@
             const key = localStorage.key(i);
             if (key.endsWith('.py')) {
                 const div = document.createElement('div');
-                div.className = 'file-item';
-                div.innerText = key;
-                div.onclick = () => {
-                    const py = pyscript.interpreter;
-                    py.runPython(`switch_file("${key}")`);
+                div.className = `file-item ${key === currentFile ? 'active' : ''}`;
+                
+                const nameSpan = document.createElement('span');
+                nameSpan.innerText = key;
+                nameSpan.onclick = () => switchFile(key);
+                
+                const delBtn = document.createElement('span');
+                delBtn.className = 'delete-btn';
+                delBtn.innerText = '×';
+                delBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    if(confirm(`Delete ${key}?`)) {
+                        localStorage.removeItem(key);
+                        if(currentFile === key) currentFile = "main.py";
+                        updateFileList();
+                        switchFile(currentFile);
+                    }
                 };
+
+                div.appendChild(nameSpan);
+                if(key !== "main.py") div.appendChild(delBtn);
                 list.appendChild(div);
             }
         }
     }
 
+    function switchFile(filename) {
+        saveCurrentFile(); // Auto-save before switching
+        currentFile = filename;
+        document.getElementById('current-file-label').innerText = filename;
+        document.getElementById('code-input').value = localStorage.getItem(filename) || "";
+        updateFileList();
+    }
+
+    function saveCurrentFile() {
+        const content = document.getElementById('code-input').value;
+        localStorage.setItem(currentFile, content);
+        console.log(`Saved ${currentFile}`);
+    }
+
     function createNewFile() {
-        const name = document.getElementById('new-filename').value;
-        if (name && name.endsWith('.py')) {
-            localStorage.setItem(name, '# New file\n');
+        const input = document.getElementById('new-filename');
+        let name = input.value.trim();
+        if (!name) return;
+        if (!name.endsWith('.py')) name += '.py';
+        
+        if (!localStorage.getItem(name)) {
+            localStorage.setItem(name, `# File: ${name}\n`);
+            input.value = '';
             updateFileList();
-            document.getElementById('new-filename').value = '';
+            switchFile(name);
+        } else {
+            alert("File already exists");
         }
     }
-    
-    // Initial UI update
-    setTimeout(updateFileList, 2000);
+
+    function clearOutput() {
+        document.getElementById('output').innerHTML = "";
+    }
+
+    // This function is called from the Python Worker via JS Proxy
+    window.appendTerminal = function(text) {
+        const output = document.getElementById('output');
+        const span = document.createElement('span');
+        span.textContent = text;
+        output.appendChild(span);
+        output.scrollTop = output.scrollHeight;
+    };
+
+    async function runPythonCode() {
+        saveCurrentFile();
+        const code = document.getElementById('code-input').value;
+        const output = document.getElementById('output');
+        const runBtn = document.getElementById('run-btn');
+        
+        runBtn.disabled = true;
+        runBtn.innerText = "⌛ Running...";
+        
+        // Prepare all files in storage to be sent to worker VFS
+        const allFiles = {};
+        for(let i=0; i<localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if(k.endsWith('.py')) allFiles[k] = localStorage.getItem(k);
+        }
+
+        try {
+            const worker = document.getElementById('main-worker').pyWorker;
+            // Call the sync function in the worker
+            await worker.sync.run_user_code(code, allFiles);
+        } catch (err) {
+            appendTerminal("\nSystem Error: " + err);
+        } finally {
+            runBtn.disabled = false;
+            runBtn.innerText = "▶ Run Code";
+        }
+    }
+
+    // Boot setup
+    window.addEventListener('load', () => {
+        document.getElementById('code-input').value = localStorage.getItem(currentFile) || "";
+        updateFileList();
+        
+        // Give worker a moment to initialize before cleaning system message
+        setTimeout(() => {
+            const out = document.getElementById('output');
+            if(out.innerHTML.includes("Initializing")) out.innerHTML = "--- Terminal Ready --- \n";
+        }, 3000);
+    });
 </script>
 
 </body>
