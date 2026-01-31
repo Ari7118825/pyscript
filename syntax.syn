@@ -1,120 +1,221 @@
 ===========================================
-syntax.syn – Python Browser IDE Window API
+syntax_v2.syn – Full Python Browser IDE API
 ===========================================
 
-This file documents all the syntax you need to:
+This file is a **complete reference** for the Python Browser IDE:
 
-- Create windows on the Virtual Desktop
-- Draw and update graphics in those windows
-- Handle keyboard and mouse input
-- Build interactive, multi-window apps
+- Virtual Desktop window API (`js_bridge`)
+- Drawing and animation
+- Keyboard & mouse input
+- Pyodide + JS interop basics
+- Pygame compatibility layer (VDG backend)
+- Screenshots / image backgrounds
+- Best practices for proxies, loops, and cleanup
 
-All examples are written in plain Python that you can paste into a `.py` file in your IDE and run with the ▶ Run button.
+Copy any example into a `.py` file in the IDE and press ▶ Run.
 
 
  
+ 
 ===========================================
-0. QUICK START – MINIMAL APP
+0. QUICK START – 3 TINY PROGRAMS
 ===========================================
 
-This is the *smallest* useful program that opens a window and draws text:
+-------------------------------------------
+0.1 Minimal Virtual Desktop window
+-------------------------------------------
 
     import js
 
     def main():
-        # 1) Get the bridge to the window system
         js_bridge = js.window.js_bridge
 
-        # 2) Create a window: (title, width, height)
         win = js_bridge.create_window("Hello Window", 400, 250)
 
-        # 3) Clear the window and draw some text
         win.clear()
         win.draw_text(40, 80, "Hello from Python!", "white", "24px Arial")
 
     main()
 
-What happens:
+What you get:
 
-- A window appears on the Virtual Desktop with title “Hello Window”.
-- Text is drawn at coordinates (40, 80) in white, using a 24px font.
+- A Virtual Desktop window titled “Hello Window”
+- Text at (40, 80) drawn in white.
 
 
  
-===========================================
-1. CORE CONCEPTS
-===========================================
-
-1.1 Python environment
-
-- You write plain Python in `.py` files.
-- When you click ▶ Run, your code runs inside Pyodide (Python in the browser).
-- `print()` goes to the IDE’s Terminal at the bottom.
-
-1.2 Accessing the browser and window API
-
-The IDE exposes a small, simple API to Python via the `js` module:
-
-- `import js` – gives you access to the browser’s JavaScript world.
-- `js.window` – the browser `window` object.
-- `js.window.js_bridge` – a special object that lets Python create and control windows.
-
-Typical startup pattern:
+-------------------------------------------
+0.2 Minimal Virtual Desktop “app layout”
+-------------------------------------------
 
     import js
 
     def main():
         js_bridge = js.window.js_bridge
-        # use js_bridge...
+        win = js_bridge.create_window("App Layout", 600, 360)
+
+        win.clear()
+
+        # Background
+        win.fill_rect(0, 0, 600, 360, "#1e1e1e")
+
+        # Top bar
+        win.fill_rect(0, 0, 600, 40, "#333333")
+        win.draw_text(12, 26, "My Tool", "white", "18px 'Segoe UI'")
+
+        # Sidebar
+        win.fill_rect(0, 40, 160, 320, "#252526")
+        win.draw_text(12, 70, "Sidebar", "#cccccc", "14px 'Segoe UI'")
+
+        # Content area
+        win.fill_rect(160, 40, 440, 320, "#1e1e1e")
+        win.draw_text(180, 70, "Main Content", "#ffffff", "16px 'Segoe UI'")
 
     main()
 
-Always call `main()` (or otherwise start your code) at the bottom so it runs when you press ▶ Run.
+
+ 
+-------------------------------------------
+0.3 Minimal pygame-style window (VDG backend)
+-------------------------------------------
+
+In this IDE, pygame is **emulated** and routed into the Virtual Desktop via
+`enable_pygame_vdg`. A simple, supported subset is available:
+
+    import pygame
+    import time
+
+    def main():
+        # Note: pygame.init() and set_caption() are NOT required here
+        screen = pygame.display.set_mode((400, 300))
+        clock = pygame.time.Clock()
+
+        for i in range(120):
+            # Fill background
+            screen.fill((0, 0, 64))
+
+            # Moving “player”
+            x = 20 + i * 2
+            pygame.draw.rect(screen, (0, 255, 0), (x, 120, 40, 40))
+
+            # Flip is a no-op but allowed
+            pygame.display.flip()
+
+            clock.tick(30)  # ~30 FPS
+            time.sleep(0.01)
+
+    if __name__ == "__main__":
+        main()
+
+Notes:
+
+- Supported:
+  - `pygame.display.set_mode((w, h))`
+  - `pygame.display.flip()`
+  - `screen.fill(color)`
+  - `pygame.draw.rect(screen, color, (x, y, w, h))`
+  - `pygame.time.Clock().tick(fps)`
+- Not implemented in this environment:
+  - `pygame.init()`
+  - `pygame.display.set_caption()`
+  - `pygame.event.get()`, surfaces, audio, etc.
+
+Just treat it as a “pygame-flavored” drawing API on top of the Virtual Desktop.
 
 
  
+ 
 ===========================================
-2. CREATING WINDOWS
+1. ENVIRONMENT OVERVIEW
 ===========================================
 
-2.1 Syntax
+1.1 Where your Python runs
+
+- Your Python code runs in **Pyodide** (Python compiled to WebAssembly).
+- `print()` writes to the **Terminal** panel at the bottom of the IDE.
+- Exceptions appear in the Terminal and sometimes the browser console.
+
+1.2 Files and the virtual filesystem
+
+- The IDE stores files in `localStorage`.
+- On Run:
+  - The IDE mirrors all non-folder keys into Pyodide’s filesystem.
+  - Each file key is written as a file with that name.
+
+Important details:
+
+- Plain text (e.g., `.py`, `.txt`) is written as Unicode text.
+- **Images (new behavior):**
+  - When imported via the IDE’s “Import File/Folder/Zip”:
+    - The IDE **may store them as Data URLs**:
+      - `data:image/png;base64,AAA...`
+    - In that case, from Python they are **text files** containing a Data URL.
+  - Binary images coming from zipped projects might still be raw bytes.
+
+You can check by opening a file in Python:
+
+    with open("screenshot.png", "rb") as f:
+        head = f.read(16)
+    print(head)
+
+If it starts with `b'data:image'`, it’s a Data URL string. If it starts with `b'\x89PNG\r\n\x1a\n'`, it’s a real PNG.
+
+1.3 Accessing the browser from Python
+
+- `import js` gives you access to the JavaScript world.
+- Common objects:
+  - `js.window`    – top-level browser window
+  - `js.document`  – the DOM document
+  - `js.console`   – browser console
+- IDE-specific:
+  - `js.window.js_bridge` – Virtual Desktop / window API
+  - `js.window.logDebug(msg, type)` – writes to IDE Logs panel
+  - `js.installPackage(name)` – adds a package to `<py-config>` (for next reload)
+  - The IDE already sets `builtins.input = custom_input` which can trigger
+    `pip install` calls too.
+
+
+ 
+ 
+===========================================
+2. VIRTUAL DESKTOP WINDOW API
+===========================================
+
+2.1 Creating a window
+
+Syntax:
 
     win = js_bridge.create_window(title: str, width: int, height: int)
 
-- `title` – string shown in the window’s title bar.
-- `width` – canvas width in pixels (drawing area).
-- `height` – canvas height in pixels (drawing area).
+- `title`  – window title bar text
+- `width`  – initial drawing width in pixels
+- `height` – initial drawing height in pixels
 
-Returns:
+Returns an object `win` with:
 
-- A `win` object with:
-  - `win.id`          – string ID of the window (used if you need the underlying HTML)
-  - `win.fill_rect`   – draws filled rectangles
-  - `win.draw_text`   – draws text
-  - `win.clear`       – clears the canvas
-  - `win.close`       – closes the window
+- `win.id`           – DOM id of the window container (`<div id="...">`)
+- `win.fill_rect(x, y, w, h, color)` – fill rectangle
+- `win.draw_text(x, y, text, color, font)` – draw text
+- `win.clear()`      – clear canvas
+- `win.close()`      – close this window
 
-2.2 Simple example
+Example:
 
     import js
 
     def main():
         js_bridge = js.window.js_bridge
+        win = js_bridge.create_window("Stats", 320, 180)
 
-        # A 500×300 window
-        win = js_bridge.create_window("My App", 500, 300)
-
-        # Background
         win.clear()
-        win.fill_rect(0, 0, 500, 300, "#202020")
-
-        win.draw_text(20, 40, "Welcome to My App", "#ffffff", "20px Arial")
+        win.fill_rect(0, 0, 320, 180, "#1e1e1e")
+        win.draw_text(10, 30, "Hello, stats window!", "white", "16px 'Segoe UI'")
 
     main()
 
-2.3 Multiple windows
 
-You can open as many windows as you want:
+ 
+2.2 Multiple windows
 
     import js
 
@@ -122,109 +223,99 @@ You can open as many windows as you want:
         js_bridge = js.window.js_bridge
 
         main_win = js_bridge.create_window("Main", 400, 250)
-        log_win  = js_bridge.create_window("Log", 300, 200)
+        log_win  = js_bridge.create_window("Log",  360, 220)
 
         main_win.clear()
-        main_win.draw_text(20, 40, "Main Window", "white", "18px Arial")
+        main_win.fill_rect(0, 0, 400, 250, "#202020")
+        main_win.draw_text(20, 40, "Main Window", "white", "18px 'Segoe UI'")
 
         log_win.clear()
-        log_win.draw_text(10, 20, "Log Window", "cyan", "14px monospace")
+        log_win.fill_rect(0, 0, 360, 220, "#111111")
+        log_win.draw_text(10, 25, "Log Output", "#75beff", "14px monospace")
 
     main()
 
 
  
-===========================================
-3. DRAWING IN WINDOWS
-===========================================
+2.3 Closing windows from Python
 
-The `win` object supports these core drawing methods:
+    import js, time
 
-- `win.clear()`
-- `win.fill_rect(x, y, w, h, color)`
-- `win.draw_text(x, y, text, color, font)`
+    def main():
+        js_bridge = js.window.js_bridge
+        win = js_bridge.create_window("Temporary", 320, 160)
 
-Coordinate system:
+        win.clear()
+        win.draw_text(10, 60, "Closing in 2 seconds...", "white", "16px Arial")
+        time.sleep(2)
+        win.close()
+        print("Window closed.")
 
-- Origin (0, 0) is at the **top-left** corner of the canvas.
-- `x` increases to the right; `y` increases downward.
-- Units are pixels.
-
-3.1 Clearing the window
-
-    win.clear()
-
-Clears the entire canvas area to transparent/black. Use this before redrawing a frame.
-
-Example:
-
-    win.clear()
-    win.draw_text(20, 40, "After Clear()", "white", "16px Arial")
-
-3.2 Drawing rectangles
-
-Syntax:
-
-    win.fill_rect(x: int, y: int, w: int, h: int, color: str)
-
-- `(x, y)` – top-left corner of the rectangle.
-- `(w, h)` – width and height in pixels.
-- `color` – any valid CSS color string, e.g.:
-  - `"red"`, `"cyan"`, `"white"`
-  - `"#ff0000"`, `"#00ffcc"`, `"#202020"`
-  - `"rgb(255, 0, 0)"`
-
-Example – simple UI layout:
-
-    win.clear()
-
-    # Background
-    win.fill_rect(0, 0, 500, 300, "#1e1e1e")
-
-    # Header bar
-    win.fill_rect(0, 0, 500, 40, "#333333")
-    win.draw_text(10, 25, "My Toolbar", "white", "16px Arial")
-
-    # Side panel
-    win.fill_rect(0, 40, 120, 260, "#252526")
-
-    # Main content area
-    win.fill_rect(120, 40, 380, 260, "#1e1e1e")
-
-3.3 Drawing text
-
-Syntax:
-
-    win.draw_text(x: int, y: int, text: str, color: str, font: str)
-
-- `(x, y)` – baseline position of the text (left edge).
-- `text` – string to draw.
-- `color` – CSS color string.
-- `font` – CSS font string, usually `"SIZEpx FAMILY"`.
-
-Common font examples:
-
-- `"14px monospace"`
-- `"16px Arial"`
-- `"20px 'Segoe UI'"`
-
-Example – status text:
-
-    win.clear()
-    win.fill_rect(0, 0, 400, 200, "#000000")
-
-    win.draw_text(20, 40, "Status: Running", "#00ff00", "16px monospace")
-    win.draw_text(20, 80, "FPS: 60", "#ffffff", "14px monospace")
+    main()
 
 
  
+ 
 ===========================================
-4. ACCESSING THE UNDERLYING CANVAS
+3. DRAWING DETAILS
 ===========================================
 
-Sometimes you need the exact pixel size of the window’s canvas, or to compute mouse positions relative to it.
+3.1 Coordinate system
 
-You can get the actual `<div>` and `<canvas>` associated with a window using `win.id`:
+- `(0, 0)` is the **top-left** of the canvas.
+- `x` increases to the right, `y` increases downward.
+- Units are **pixels**.
+
+3.2 Colors
+
+Anything the browser understands as a CSS color:
+
+- Named: `"red"`, `"cyan"`, `"white"`
+- Hex: `"#ff0000"`, `"#00ffcc"`, `"#202020"`
+- RGB: `"rgb(255, 0, 0)"`, `"rgb(30, 30, 30)"`
+
+3.3 `win.clear()`
+
+Clears the entire canvas:
+
+    win.clear()
+    win.draw_text(10, 30, "After clear()", "white", "16px Arial")
+
+3.4 `win.fill_rect(x, y, w, h, color)`
+
+    win.fill_rect(0, 0, 500, 300, "#1e1e1e")   # background
+    win.fill_rect(0, 0, 500, 40, "#333333")    # top bar
+    win.fill_rect(0, 40, 120, 260, "#252526")  # sidebar
+
+Useful to build basic UI layout, progress bars, health bars, etc.
+
+3.5 `win.draw_text(x, y, text, color, font)`
+
+    win.draw_text(20, 30, "Title", "white", "18px 'Segoe UI'")
+    win.draw_text(20, 60, "FPS: 60", "#00ff00", "14px monospace")
+
+- `(x, y)` is roughly the baseline left of the text.
+- `font` is a CSS font descriptor: `"14px monospace"`, `"20px 'Segoe UI'"`, etc.
+
+Example status bar:
+
+    win.fill_rect(0, 180, 320, 20, "#333333")
+    win.draw_text(8, 195, "Status: OK", "#75beff", "12px monospace")
+
+
+ 
+ 
+===========================================
+4. ACCESSING THE UNDERLYING CANVAS & RESIZING
+===========================================
+
+4.1 Getting the `<canvas>` and DOM element
+
+Each `win` has:
+
+- `win.id` – DOM id of the outer window `<div>`
+
+From Python:
 
     import js
 
@@ -232,90 +323,139 @@ You can get the actual `<div>` and `<canvas>` associated with a window using `wi
         js_bridge = js.window.js_bridge
         win = js_bridge.create_window("Canvas Info", 400, 300)
 
-        # Get the DOM element for this window
         win_el = js.document.getElementById(win.id)
         canvas = win_el.querySelector("canvas")
 
-        width = canvas.width
+        width  = canvas.width
         height = canvas.height
 
         win.clear()
         win.fill_rect(0, 0, width, height, "#202020")
-        win.draw_text(10, 30, f"Canvas size: {width}x{height}", "white", "16px monospace")
+        win.draw_text(10, 30, f"Canvas: {width} x {height}", "white", "16px monospace")
 
     main()
 
 
  
-===========================================
-5. ANIMATION AND GAME LOOPS
-===========================================
+4.2 Handling window resizing
 
-There are two common approaches:
+The Virtual Desktop allows resizing windows. The IDE keeps the `<canvas>` size
+in sync with the window. For smooth behavior:
 
-- Simple, slower animations using `time.sleep` in a loop.
-- More responsive updates using JavaScript timers (`setInterval`) plus `create_proxy`.
+- Always recompute `canvas.width` / `canvas.height` each frame.
+- Redraw based on your game/app state, not previous pixels.
+
+Example – dynamic background color that depends on size:
+
+    import js
+    from js import document
+    from pyodide.ffi import create_proxy
+
+    WIDTH, HEIGHT = 400, 300
+
+    _draw_proxy = None
+
+    def main():
+        js_bridge = js.window.js_bridge
+        win = js_bridge.create_window("Resizing Example", WIDTH, HEIGHT)
+
+        win_el = document.getElementById(win.id)
+        canvas = win_el.querySelector("canvas")
+        ctx = canvas.getContext("2d")
+
+        def draw(*_args):
+            w = int(canvas.width)
+            h = int(canvas.height)
+            if w <= 0 or h <= 0:
+                return
+
+            # Gradient-ish effect just using rects
+            ctx.clearRect(0, 0, w, h)
+            ctx.fillStyle = "#202020"
+            ctx.fillRect(0, 0, w, h)
+            ctx.fillStyle = "#007acc"
+            ctx.fillRect(0, 0, w, 30)
+            ctx.fillStyle = "#333333"
+            ctx.fillRect(0, h - 24, w, 24)
+
+        global _draw_proxy
+        _draw_proxy = create_proxy(draw)
+        js.window.setInterval(_draw_proxy, 100)
+
+        draw()
+
+    main()
 
 
  
+ 
+===========================================
+5. ANIMATION & GAME LOOPS
+===========================================
+
+There are two main patterns:
+
+- Python loops with `time.sleep` (simple, blocking).
+- JS timers with `setInterval` + `create_proxy` (non-blocking, modern).
+
 -------------------------------------------
-5.1 Simple animation with time.sleep
+5.1 Simple Python loop with time.sleep
 -------------------------------------------
 
-Good for demos and slow animations.
+Good for short demos, less ideal for heavy UIs.
 
     import js
     import time
 
+    WIDTH, HEIGHT = 400, 200
+
     def main():
         js_bridge = js.window.js_bridge
-        win = js_bridge.create_window("Simple Animation", 400, 200)
+        win = js_bridge.create_window("Simple Animation", WIDTH, HEIGHT)
 
-        win.fill_rect(0, 0, 400, 200, "#000000")
-
-        for i in range(20):
+        for i in range(40):
             win.clear()
-            win.fill_rect(0, 0, 400, 200, "#000000")
+            win.fill_rect(0, 0, WIDTH, HEIGHT, "#000000")
 
-            # Moving square
-            x = 10 + i * 15
-            y = 80
-            win.fill_rect(x, y, 30, 30, "#00ffcc")
+            x = 10 + i * 8
+            win.fill_rect(x, 80, 40, 40, "#00ffcc")
 
             win.draw_text(10, 30, f"Frame {i+1}", "white", "16px monospace")
-
-            time.sleep(0.2)  # pause 0.2 seconds per frame
+            time.sleep(0.1)
 
     main()
 
 
  
 -------------------------------------------
-5.2 Smooth loops with setInterval
+5.2 Smooth loops with setInterval + create_proxy
 -------------------------------------------
 
-For games and real-time apps, it’s better to use JavaScript’s timer:
+For continuous games and tools, prefer:
 
-- Use `pyodide.ffi.create_proxy` to wrap a Python function.
-- Use `js.window.setInterval(proxy, interval_ms)` to call it repeatedly.
-- **Important:** keep the proxy object alive (e.g. store it on `js.window`) or
-  Pyodide will destroy it and you’ll see errors like
-  "This borrowed proxy was automatically destroyed" in the browser console.
+- `pyodide.ffi.create_proxy` to wrap Python callbacks.
+- `js.window.setInterval(proxy, interval_ms)` to schedule them.
+
+Important:
+
+- **You MUST keep proxies alive** (store them somewhere like `js.window`) or
+  Pyodide will garbage-collect them. Then you get errors like:
+  “This borrowed proxy was automatically destroyed at the end of a function call”.
 
 Example – bouncing ball:
 
     import js
-    import random
     from pyodide.ffi import create_proxy
 
     WIDTH = 400
     HEIGHT = 250
 
+    _step_proxy = None
+
     def main():
         js_bridge = js.window.js_bridge
         win = js_bridge.create_window("Bouncing Ball", WIDTH, HEIGHT)
 
-        # Ball state
         state = {
             "x": WIDTH // 2,
             "y": HEIGHT // 2,
@@ -328,18 +468,15 @@ Example – bouncing ball:
             win.clear()
             win.fill_rect(0, 0, WIDTH, HEIGHT, "#101010")
 
-            # Draw ball as a square (no circle primitive, but good enough)
             x = state["x"] - state["r"]
             y = state["y"] - state["r"]
             size = state["r"] * 2
             win.fill_rect(x, y, size, size, "#ff5555")
 
-        def step(*args):
-            # Update position
+        def step(*_args):
             state["x"] += state["vx"]
             state["y"] += state["vy"]
 
-            # Bounce on edges
             if state["x"] - state["r"] < 0 or state["x"] + state["r"] > WIDTH:
                 state["vx"] *= -1
             if state["y"] - state["r"] < 0 or state["y"] + state["r"] > HEIGHT:
@@ -347,14 +484,12 @@ Example – bouncing ball:
 
             draw()
 
-        # Wrap Python function so JS can call it, and keep proxy alive
-        step_proxy = create_proxy(step)
-        js.window._bouncing_ball_step_proxy = step_proxy
+        global _step_proxy
+        _step_proxy = create_proxy(step)
+        js.window._bouncing_ball_step_proxy = _step_proxy  # keep it alive
 
-        # Call step() every 16 ms (~60 FPS)
-        interval_id = js.window.setInterval(step_proxy, 16)
+        interval_id = js.window.setInterval(_step_proxy, 16)
 
-        # Optional cleanup function for the future
         def cleanup():
             js.window.clearInterval(interval_id)
             try:
@@ -371,34 +506,25 @@ Example – bouncing ball:
 
 
  
+ 
 ===========================================
-6. KEYBOARD AND MOUSE INPUT
+6. KEYBOARD & MOUSE INPUT
 ===========================================
 
-The window API itself does not directly provide event callbacks, so we hook into the browser’s events via `js.document` and `create_proxy`.
-
-Basic pattern:
-
-1. Define Python functions like `on_key_down(event)`.
-2. Wrap them with `create_proxy`.
-3. Register with `js.document.addEventListener`.
-
-Events you can listen for:
-
-- `"keydown"`, `"keyup"` – keyboard
-- `"mousemove"`, `"mousedown"`, `"mouseup"` – mouse
-- (and many more browser events if needed)
+Use browser events via `js.document.addEventListener` plus `create_proxy`.
 
 -------------------------------------------
-6.1 Keyboard input – basic controls
+6.1 Keyboard movement example
 -------------------------------------------
 
-Example: move a square with Arrow keys or WASD.
+Move a square with Arrow keys or WASD:
 
     import js
     from pyodide.ffi import create_proxy
 
     WIDTH, HEIGHT = 400, 250
+
+    _kb_proxy = None
 
     def main():
         js_bridge = js.window.js_bridge
@@ -413,7 +539,6 @@ Example: move a square with Arrow keys or WASD.
         def redraw():
             win.clear()
             win.fill_rect(0, 0, WIDTH, HEIGHT, "#000000")
-            # Square as a 30x30 block
             win.fill_rect(state["x"], state["y"], 30, 30, "#00ff00")
             win.draw_text(10, 20, "Use Arrow keys or WASD", "white", "14px monospace")
 
@@ -430,11 +555,10 @@ Example: move a square with Arrow keys or WASD.
 
             redraw()
 
-        key_down_proxy = create_proxy(on_key_down)
-        js.document.addEventListener("keydown", key_down_proxy)
-
-        # keep proxy alive so it isn't garbage-collected
-        js.window._kb_move_proxy = key_down_proxy
+        global _kb_proxy
+        _kb_proxy = create_proxy(on_key_down)
+        js.document.addEventListener("keydown", _kb_proxy)
+        js.window._kb_move_proxy = _kb_proxy  # keep alive
 
         redraw()
         print("Keyboard-controlled square ready.")
@@ -444,51 +568,35 @@ Example: move a square with Arrow keys or WASD.
 
  
 -------------------------------------------
-6.2 Mouse position & key state tracker
+6.2 Mouse tracking over a specific window
 -------------------------------------------
 
-This example shows mouse X/Y relative to the window’s canvas, and which key is currently pressed:
+Track mouse coordinates relative to a particular window’s canvas:
 
     import js
+    from js import document
     from pyodide.ffi import create_proxy
 
-    def main():
-        # Prevent multiple trackers if you run this several times
-        if getattr(js.window, "_input_tracker_initialized", False):
-            print("Input tracker is already running.")
-            return
-        js.window._input_tracker_initialized = True
+    _mouse_proxies = None
 
+    def main():
         js_bridge = js.window.js_bridge
-        win = js_bridge.create_window("Mouse & Keyboard Tracker", 500, 200)
+        win = js_bridge.create_window("Mouse Tracker", 500, 200)
         win_id = win.id
 
-        win_el = js.document.getElementById(win_id)
+        win_el = document.getElementById(win_id)
         canvas = win_el.querySelector("canvas")
 
-        state = {
-            "x": 0,
-            "y": 0,
-            "key": ""
-        }
+        state = {"x": 0, "y": 0}
 
         def redraw():
             win.clear()
             win.fill_rect(0, 0, canvas.width, canvas.height, "#202020")
-
             win.draw_text(
                 20, 60,
                 f"Mouse: {state['x']}, {state['y']}",
                 "white",
-                "18px monospace"
-            )
-
-            key_text = state["key"] or "None"
-            win.draw_text(
-                20, 110,
-                f"Key down: {key_text}",
-                "white",
-                "18px monospace"
+                "18px monospace",
             )
 
         def on_mouse_move(event):
@@ -497,83 +605,301 @@ This example shows mouse X/Y relative to the window’s canvas, and which key is
             state["y"] = int(event.clientY - rect.top)
             redraw()
 
-        def on_key_down(event):
-            state["key"] = event.key
-            redraw()
-
-        def on_key_up(event):
-            if event.key == state["key"]:
-                state["key"] = ""
-                redraw()
-
         mouse_proxy = create_proxy(on_mouse_move)
-        key_down_proxy = create_proxy(on_key_down)
-        key_up_proxy = create_proxy(on_key_up)
-
         js.document.addEventListener("mousemove", mouse_proxy)
-        js.document.addEventListener("keydown", key_down_proxy)
-        js.document.addEventListener("keyup", key_up_proxy)
 
-        # Keep proxies alive
-        js.window._input_tracker_proxies = [mouse_proxy, key_down_proxy, key_up_proxy]
+        global _mouse_proxies
+        _mouse_proxies = [mouse_proxy]
+        js.window._mouse_tracker_proxies = _mouse_proxies
 
         redraw()
-        print("Mouse & keyboard tracker running. Move over the window and press keys.")
+        print("Move your mouse over the 'Mouse Tracker' window.")
 
     main()
 
 
  
+ 
 ===========================================
-7. WINDOW CONTROL AND MANAGEMENT
+7. PYGAME COMPATIBILITY LAYER (VDG)
 ===========================================
 
-From Python, the main controls you have are:
+The IDE provides a lightweight pygame-like environment mapped to the Virtual Desktop.
 
-- Close a window:
-  
-      win.close()
+7.1 What is implemented
 
-- Clear the entire window:
+When your code runs, the IDE calls `enable_pygame_vdg()`, which:
 
-      win.clear()
+- Creates (or patches) a `pygame` module with:
+  - `pygame.display.set_mode((w, h))` → creates a Virtual Desktop window
+  - `pygame.display.flip()` → no-op (drawing is immediate)
+  - A surface object returned by `set_mode` with:
+    - `surface.fill(color)` → fills the VDG window
+  - `pygame.draw.rect(surface, color, (x, y, w, h), width=0)` → draws rects
+  - `pygame.time.Clock().tick(fps)` → simple sleep-based ticker
 
-- Redraw content whenever your state changes (e.g., after input or on each timer tick).
+7.2 What is NOT implemented
 
-7.1 Closing a window
+- `pygame.init()`
+- `pygame.display.set_caption()`
+- `pygame.event.get()`, `pygame.event.poll()`, etc.
+- Additional surfaces, image loading, fonts, audio, etc.
 
-Example:
+Use it as a convenient syntax layer on top of VDG, not full pygame.
 
-    import js
+7.3 Basic pygame-style example
+
+    import pygame
     import time
 
     def main():
+        screen = pygame.display.set_mode((400, 300))
+        clock = pygame.time.Clock()
+
+        for frame in range(120):
+            screen.fill((10, 10, 30))
+            x = 20 + frame * 2
+            pygame.draw.rect(screen, (0, 200, 80), (x, 120, 40, 40))
+            pygame.display.flip()
+
+            clock.tick(30)
+            time.sleep(0.01)
+
+        print("Done.")
+
+    if __name__ == "__main__":
+        main()
+
+7.4 Using VDG + pygame for UI layout
+
+    import pygame
+    import time
+
+    def main():
+        screen = pygame.display.set_mode((600, 360))
+        clock = pygame.time.Clock()
+
+        for _ in range(120):
+            screen.fill((30, 30, 30))
+
+            # Top bar
+            pygame.draw.rect(screen, (45, 45, 48), (0, 0, 600, 40))
+            # Left panel
+            pygame.draw.rect(screen, (37, 37, 38), (0, 40, 160, 320))
+            # Content
+            pygame.draw.rect(screen, (30, 30, 30), (160, 40, 440, 320))
+
+            pygame.display.flip()
+            clock.tick(30)
+            time.sleep(0.01)
+
+    if __name__ == "__main__":
+        main()
+
+
+ 
+ 
+===========================================
+8. IMAGE HANDLING & SCREENSHOT BACKGROUNDS
+===========================================
+
+There are two common ways images can exist in your environment:
+
+- As **raw binary files** (actual `.png` bytes, e.g., from a zip project).
+- As **Data URL text files** (imported via the IDE’s image import).
+
+8.1 Detecting the image format from Python
+
+    def detect_image_type(path="screenshot.png"):
+        with open(path, "rb") as f:
+            head = f.read(32)
+        if head.startswith(b"data:image"):
+            return "data-url"
+        if head.startswith(b"\x89PNG\r\n\x1a\n"):
+            return "png-binary"
+        return "unknown"
+
+    print(detect_image_type())
+
+Use this to decide which loading strategy to use.
+
+-------------------------------------------
+8.2 VDG window background from a Data URL file
+-------------------------------------------
+
+Case: `screenshot.png` is a **text file containing a Data URL** like
+`data:image/png;base64,...`.
+
+    import js
+    from js import document
+
+    def main():
+        # 1) Read Data URL from the virtual filesystem
+        with open("screenshot.png", "r", encoding="utf-8") as f:
+            data_url = f.read().strip()
+
+        # 2) Create a JS Image object
+        Image = js.Image
+        img = Image.new()
+        img.src = data_url
+
+        # 3) Create a VDG window
         js_bridge = js.window.js_bridge
-        win = js_bridge.create_window("Temporary Window", 300, 150)
+        win = js_bridge.create_window("Screenshot Background (Data URL)", 800, 600)
 
-        win.clear()
-        win.draw_text(10, 40, "This will close in 3 seconds...", "white", "14px Arial")
+        win_el = document.getElementById(win.id)
+        canvas = win_el.querySelector("canvas")
+        ctx = canvas.getContext("2d")
 
-        time.sleep(3)
-        win.close()
-        print("Window closed from Python.")
+        def draw(*_args):
+            w = int(canvas.width)
+            h = int(canvas.height)
+            if w <= 0 or h <= 0:
+                return
+            ctx.clearRect(0, 0, w, h)
+            ctx.drawImage(img, 0, 0, w, h)
+
+        from pyodide.ffi import create_proxy
+        draw_proxy = create_proxy(draw)
+        js.window._screenshot_draw_proxy = draw_proxy
+
+        js.window.setInterval(draw_proxy, 200)
+        print("Screenshot background window (Data URL) running.")
 
     main()
 
-7.2 Basic “screen management” pattern
 
-Most apps follow this structure:
+ 
+-------------------------------------------
+8.3 VDG window background from a binary PNG file
+-------------------------------------------
 
-1. Keep a `state` dict.
-2. Write a `draw()` function that renders the entire screen from `state`.
-3. Input events modify `state`, then call `draw()`.
+Case: `screenshot.png` is **real PNG bytes**.
 
-Skeleton:
+    import base64
+    import js
+    from js import document
+    from pyodide.ffi import create_proxy
+
+    _draw_proxy = None
+    _onload_proxy = None
+
+    def main():
+        log_debug = js.window.logDebug
+
+        # 1) Load screenshot.png as binary
+        try:
+            with open("screenshot.png", "rb") as f:
+                data = f.read()
+            log_debug("Loaded screenshot.png (binary)", "success")
+        except Exception as e:
+            log_debug(f"Failed to load screenshot.png: {e}", "error")
+            print("Failed to load screenshot.png:", e)
+            return
+
+        # 2) Convert to Data URL
+        try:
+            data_b64 = base64.b64encode(data).decode("ascii")
+            data_url = "data:image/png;base64," + data_b64
+            log_debug("Converted screenshot.png to data URL", "info")
+        except Exception as e:
+            log_debug(f"Failed to convert image to data URL: {e}", "error")
+            print("Failed to convert image to data URL:", e)
+            return
+
+        # 3) Create JS Image
+        try:
+            Image = js.Image
+            img = Image.new()
+            img.src = data_url
+            log_debug("Created JS Image and set src", "info")
+        except Exception as e:
+            log_debug(f"Failed to create JS Image: {e}", "error")
+            print("Failed to create JS Image:", e)
+            return
+
+        # 4) Create VDG window
+        try:
+            js_bridge = js.window.js_bridge
+            win = js_bridge.create_window("Screenshot Background", 800, 600)
+            log_debug(f"Created VDG window with id={win.id}", "success")
+        except Exception as e:
+            log_debug(f"Failed to create VDG window: {e}", "error")
+            print("Failed to create VDG window:", e)
+            return
+
+        # 5) Get canvas/context
+        try:
+            win_el = document.getElementById(win.id)
+            if not win_el:
+                log_debug("VDG window element not found in DOM", "error")
+                return
+
+            canvas = win_el.querySelector("canvas")
+            if not canvas:
+                log_debug("Canvas not found inside VDG window", "error")
+                return
+
+            ctx = canvas.getContext("2d")
+            if not ctx:
+                log_debug("Failed to get 2D context from canvas", "error")
+                return
+
+            log_debug(f"Canvas initial size: {canvas.width}x{canvas.height}", "info")
+        except Exception as e:
+            log_debug(f"Error while getting canvas/context: {e}", "error")
+            print("Error while getting canvas/context:", e)
+            return
+
+        state = {"loaded": False}
+
+        def on_load(event):
+            state["loaded"] = True
+            log_debug("Image load event fired", "success")
+
+        global _onload_proxy
+        _onload_proxy = create_proxy(on_load)
+        img.addEventListener("load", _onload_proxy)
+
+        def draw(*_args):
+            if not state["loaded"]:
+                return
+            w = int(canvas.width)
+            h = int(canvas.height)
+            if w <= 0 or h <= 0:
+                return
+            ctx.clearRect(0, 0, w, h)
+            ctx.drawImage(img, 0, 0, w, h)
+
+        global _draw_proxy
+        _draw_proxy = create_proxy(draw)
+        js.window.setInterval(_draw_proxy, 200)
+        log_debug("Started screenshot draw interval (200ms)", "info")
+
+    main()
+
+
+ 
+ 
+===========================================
+9. STRUCTURING APPS & BEST PRACTICES
+===========================================
+
+9.1 State + draw() pattern
+
+Most apps should:
+
+1. Keep a `state` dict (world / UI state).
+2. Have a `draw()` function that renders the screen from `state`.
+3. Input handlers change `state`, then call `draw()`.
+
+Example skeleton:
 
     import js
     from pyodide.ffi import create_proxy
 
     WIDTH, HEIGHT = 400, 300
+    _key_proxy = None
 
     def main():
         js_bridge = js.window.js_bridge
@@ -591,365 +917,62 @@ Skeleton:
             win.draw_text(10, 80, f"Counter: {state['counter']}", "cyan", "16px monospace")
 
         def on_key_down(event):
-            if event.key in (" ", "Spacebar"):  # space
+            if event.key in (" ", "Spacebar"):
                 state["counter"] += 1
                 draw()
 
-        key_proxy = create_proxy(on_key_down)
-        js.document.addEventListener("keydown", key_proxy)
-        js.window._app_skeleton_proxy = key_proxy
+        global _key_proxy
+        _key_proxy = create_proxy(on_key_down)
+        js.document.addEventListener("keydown", _key_proxy)
+        js.window._app_skeleton_proxy = _key_proxy
 
         draw()
+        print("App skeleton ready, press space to increment counter.")
 
     main()
 
 
  
-===========================================
-8. ADVANCED EXAMPLE – SNAKE GAME
-===========================================
+9.2 Proxies and cleanup checklist
 
-Here is a condensed Snake game using the same window and input API.
+- Every function you pass into JS (event listeners, timers) must be:
+  - Wrapped with `create_proxy`.
+  - Stored somewhere live (e.g. `js.window._my_proxy = proxy`).
+- When you stop using it, also:
+  - Clear intervals with `js.window.clearInterval(id)`.
+  - Remove event listeners with `removeEventListener`.
+  - Optionally delete stored proxies from `js.window`.
 
-You can copy this into `snake.py`:
+Example cleanup snippet:
 
-    import js
-    import random
-    from pyodide.ffi import create_proxy
-
-    CELL_SIZE = 20
-    GRID_W = 20
-    GRID_H = 15
-    TICK_MS = 120  # lower = faster
-
-    def main():
-        # If a previous Snake game is running, clean it up first
-        prev_cleanup = getattr(js.window, "_snake_cleanup", None)
-        if prev_cleanup is not None:
-            try:
-                prev_cleanup()
-            except Exception:
-                pass
-
-        js_bridge = js.window.js_bridge
-        width = CELL_SIZE * GRID_W
-        height = CELL_SIZE * GRID_H
-        win = js_bridge.create_window("Snake.py", width, height)
-        win_id = win.id
-
-        win_el = js.document.getElementById(win_id)
-        canvas = win_el.querySelector("canvas")
-
-        state = {
-            "snake": [],
-            "dir": (1, 0),
-            "pending_dir": (1, 0),
-            "food": (0, 0),
-            "alive": True,
-            "score": 0,
-        }
-
-        def place_food():
-            while True:
-                x = random.randint(0, GRID_W - 1)
-                y = random.randint(0, GRID_H - 1)
-                if (x, y) not in state["snake"]:
-                    state["food"] = (x, y)
-                    return
-
-        def reset_game():
-            mid_x = GRID_W // 2
-            mid_y = GRID_H // 2
-            state["snake"] = [
-                (mid_x, mid_y),
-                (mid_x - 1, mid_y),
-                (mid_x - 2, mid_y),
-            ]
-            state["dir"] = (1, 0)
-            state["pending_dir"] = (1, 0)
-            state["score"] = 0
-            state["alive"] = True
-            place_food()
-            draw()
-
-        def draw():
-            win.clear()
-            win.fill_rect(0, 0, canvas.width, canvas.height, "#000000")
-
-            # Food
-            fx, fy = state["food"]
-            win.fill_rect(fx * CELL_SIZE, fy * CELL_SIZE, CELL_SIZE, CELL_SIZE, "#ff3333")
-
-            # Snake
-            for i, (x, y) in enumerate(state["snake"]):
-                color = "#66ff66" if i == 0 else "#22aa22"
-                win.fill_rect(
-                    x * CELL_SIZE + 1,
-                    y * CELL_SIZE + 1,
-                    CELL_SIZE - 2,
-                    CELL_SIZE - 2,
-                    color,
-                )
-
-            win.draw_text(8, 18, f"Score: {state['score']}", "white", "14px monospace")
-
-            if not state["alive"]:
-                msg = "GAME OVER - Press R to restart"
-                win.draw_text(30, canvas.height // 2, msg, "yellow", "16px monospace")
-
-        def step(*_args):
-            if not state["alive"]:
-                return
-
-            state["dir"] = state["pending_dir"]
-            dx, dy = state["dir"]
-            head_x, head_y = state["snake"][0]
-            nx, ny = head_x + dx, head_y + dy
-
-            # Wall collision
-            if nx < 0 or nx >= GRID_W or ny < 0 or ny >= GRID_H:
-                state["alive"] = False
-                draw()
-                return
-
-            # Self collision
-            if (nx, ny) in state["snake"]:
-                state["alive"] = False
-                draw()
-                return
-
-            new_head = (nx, ny)
-            state["snake"].insert(0, new_head)
-
-            # Food eaten?
-            if new_head == state["food"]:
-                state["score"] += 1
-                place_food()
-            else:
-                state["snake"].pop()
-
-            draw()
-
-        def on_key_down(event):
-            key = event.key
-            dx, dy = state["dir"]
-
-            if key in ("ArrowUp", "w", "W"):
-                ndx, ndy = (0, -1)
-            elif key in ("ArrowDown", "s", "S"):
-                ndx, ndy = (0, 1)
-            elif key in ("ArrowLeft", "a", "A"):
-                ndx, ndy = (-1, 0)
-            elif key in ("ArrowRight", "d", "D"):
-                ndx, ndy = (1, 0)
-            elif key in ("r", "R"):
-                reset_game()
-                return
-            else:
-                return
-
-            # Prevent 180-degree turn
-            if ndx == -dx and ndy == -dy:
-                return
-
-            state["pending_dir"] = (ndx, ndy)
-
-        step_proxy = create_proxy(step)
-        key_proxy = create_proxy(on_key_down)
-
-        interval_id = js.window.setInterval(step_proxy, TICK_MS)
-        js.document.addEventListener("keydown", key_proxy)
-
-        # Keep proxies alive so Pyodide does not destroy them
-        js.window._snake_proxies = [step_proxy, key_proxy]
-
-        def cleanup():
-            try:
-                js.window.clearInterval(interval_id)
-            except Exception:
-                pass
-            try:
-                js.document.removeEventListener("keydown", key_proxy)
-            except Exception:
-                pass
-            try:
-                del js.window._snake_proxies
-            except Exception:
-                pass
-
-        js.window._snake_cleanup = cleanup
-        js.window._snake_state = state
-
-        reset_game()
-        print("Snake started. Use Arrow keys or WASD. Press R to restart.")
-
-    main()
+    def cleanup():
+        try:
+            js.window.clearInterval(interval_id)
+        except Exception:
+            pass
+        try:
+            js.document.removeEventListener("keydown", key_proxy)
+        except Exception:
+            pass
+        try:
+            del js.window._my_proxies
+        except Exception:
+            pass
 
 
  
-===========================================
-9. BUILDING ANY APP YOU WANT
-===========================================
+9.3 Printing to IDE console from helper modules
 
-With the pieces above you can build **any** 2D windowed app in this environment:
+From any function, you can:
 
-- Use `create_window` to create one or more views.
-- Combine `fill_rect` and `draw_text` to build buttons, labels, HUDs, and UIs.
-- Use `create_proxy` and `addEventListener` for:
-  - Keyboard controls
-  - Mouse controls (clicks, dragging, hover effects)
-- Always keep proxies alive (e.g. store them on `js.window`) while the browser
-  might still call them, otherwise Pyodide will destroy them.
-- Use `setInterval` (or loops with `time.sleep`) for:
-  - Game loops
-  - Animations
-  - Periodic updates (e.g., clocks, status updates)
-- Use normal Python (and packages you install) for:
-  - Data processing
-  - AI/logic
-  - Simulations
-- Use `js_bridge.print_to_console(msg)` if you want to print directly to the IDE console from a “library” function:
+    js_bridge = js.window.js_bridge
+    js_bridge.print_to_console("Hello from my engine!")
 
-      js_bridge.print_to_console("Hello from inside my engine!")
-
--------------------------------------------
-9.1 Example – screenshot window background (auto-resizing)
--------------------------------------------
-
-This example loads `screenshot.png` from the virtual filesystem, opens a
-Virtual Desktop window, and draws the image scaled to the current window size.
-It automatically updates when the window is resized.
-
-    import base64
-    import js
-    from js import document
-    from pyodide.ffi import create_proxy
-
-    # Keep proxies alive so Pyodide does not destroy them
-    _draw_proxy = None
-    _onload_proxy = None
-
-    def main():
-        log_debug = js.window.logDebug
-
-        # 1) Load screenshot.png from the virtual filesystem
-        try:
-            with open("screenshot.png", "rb") as f:
-                data = f.read()
-            log_debug("Loaded screenshot.png from filesystem", "success")
-        except Exception as e:
-            log_debug(f"Failed to load screenshot.png: {e}", "error")
-            print("Failed to load screenshot.png:", e)
-            return
-
-        # 2) Convert to a data URL that the browser can display
-        try:
-            data_b64 = base64.b64encode(data).decode("ascii")
-            data_url = "data:image/png;base64," + data_b64
-            log_debug("Converted screenshot.png to data URL", "info")
-        except Exception as e:
-            log_debug(f"Failed to convert image to data URL: {e}", "error")
-            print("Failed to convert image to data URL:", e)
-            return
-
-        # 3) Create a JS Image and set its source
-        try:
-            Image = js.Image
-            img = Image.new()
-            img.src = data_url
-            log_debug("Created JS Image and set src", "info")
-        except Exception as e:
-            log_debug(f"Failed to create JS Image: {e}", "error")
-            print("Failed to create JS Image:", e)
-            return
-
-        # 4) Create a Virtual Desktop window to draw into
-        try:
-            js_bridge = js.window.js_bridge
-            win = js_bridge.create_window("Screenshot Background", 800, 600)
-            log_debug(f"Created VDG window with id={win.id}", "success")
-        except Exception as e:
-            log_debug(f"Failed to create VDG window: {e}", "error")
-            print("Failed to create VDG window:", e)
-            return
-
-        # 5) Access the underlying <canvas> and its 2D context
-        try:
-            win_el = document.getElementById(win.id)
-            if not win_el:
-                log_debug("VDG window element not found in DOM", "error")
-                print("VDG window element not found in DOM")
-                return
-
-            canvas = win_el.querySelector("canvas")
-            if not canvas:
-                log_debug("Canvas not found inside VDG window", "error")
-                print("Canvas not found inside VDG window")
-                return
-
-            ctx = canvas.getContext("2d")
-            if not ctx:
-                log_debug("Failed to get 2D context from canvas", "error")
-                print("Failed to get 2D context from canvas")
-                return
-
-            log_debug(f"Canvas initial size: {canvas.width}x{canvas.height}", "info")
-        except Exception as e:
-            log_debug(f"Error while getting canvas/context: {e}", "error")
-            print("Error while getting canvas/context:", e)
-            return
-
-        state = {"loaded": False}
-
-        def on_load(event):
-            state["loaded"] = True
-            log_debug("Image load event fired", "success")
-
-        global _onload_proxy
-        _onload_proxy = create_proxy(on_load)
-        try:
-            img.addEventListener("load", _onload_proxy)
-        except Exception as e:
-            log_debug(f"Failed to attach image load listener: {e}", "error")
-            print("Failed to attach image load listener:", e)
-
-        def draw(*_args):
-            if not state["loaded"]:
-                return
-
-            try:
-                w = int(canvas.width)
-                h = int(canvas.height)
-            except Exception as e:
-                log_debug(f"Error reading canvas size: {e}", "error")
-                print("Error reading canvas size:", e)
-                return
-
-            if w <= 0 or h <= 0:
-                return
-
-            try:
-                ctx.clearRect(0, 0, w, h)
-                ctx.drawImage(img, 0, 0, w, h)
-            except Exception as e:
-                log_debug(f"drawImage failed: {e}", "error")
-                print("drawImage failed:", e)
-
-        global _draw_proxy
-        _draw_proxy = create_proxy(draw)
-        try:
-            js.window.setInterval(_draw_proxy, 200)
-            log_debug("Started screenshot draw interval (200ms)", "info")
-        except Exception as e:
-            log_debug(f"Failed to start draw interval: {e}", "error")
-            print("Failed to start draw interval:", e)
-
-    main()
-
-Everything else is about how you structure your state and logic.
+This writes directly to the IDE Terminal.
 
 
  
+ 
 ===========================================
-END OF syntax.syn
+END OF syntax_v2.syn
 ===========================================
