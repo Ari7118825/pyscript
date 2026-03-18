@@ -682,36 +682,25 @@
         }
     </style>
 
-    <script>
-        function logDebug(msg, type = 'info') {
-            const log = document.getElementById('debug-log');
-            if (!log) return;
-            const entry = document.createElement('div');
-            entry.className = 'log-entry' + (type !== 'info' ? ' log-' + type : '');
-            entry.innerText = `[${new Date().toLocaleTimeString()}] ${msg}`;
-            log.appendChild(entry);
-            log.scrollTop = log.scrollHeight;
-        }
+<link rel="stylesheet" href="https://pyscript.net/releases/2024.10.1/core.css">
+<script type="module" src="https://pyscript.net/releases/2024.10.1/core.js"></script>
 
-        // Newest PyScript (includes Pyodide)
-        const PYSCRIPT_VERSION = "2026.1.1";
-        const cssUrl = `https://pyscript.net/releases/${PYSCRIPT_VERSION}/core.css`;
-        const jsUrl = `https://pyscript.net/releases/${PYSCRIPT_VERSION}/core.js`;
+<script>
+    function logDebug(msg, type = 'info') {
+        const log = document.getElementById('debug-log');
+        if (!log) return;
+        const entry = document.createElement('div');
+        entry.className = 'log-entry' + (type !== 'info' ? ' log-' + type : '');
+        entry.innerText = `[${new Date().toLocaleTimeString()}] ${msg}`;
+        log.appendChild(entry);
+        log.scrollTop = log.scrollHeight;
+    }
 
-        function loadAssets() {
-            logDebug("Initializing core components...");
-            const link = document.createElement('link');
-            link.rel = 'stylesheet'; 
-            link.href = cssUrl;
-            document.head.appendChild(link);
-
-            const script = document.createElement('script');
-            script.type = 'module'; 
-            script.src = jsUrl;
-            document.head.appendChild(script);
-        }
-        loadAssets();
-    </script>
+    // Keep your logging, but notice we removed the dynamic asset loading
+    window.addEventListener('load', () => {
+        logDebug("Page loaded. PyScript engine initializing...");
+    });
+</script>
 
     <!-- Monaco Editor loader -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
